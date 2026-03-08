@@ -164,3 +164,66 @@ class TestUpsertCompanyTrackingEntry:
         assert tracker.companies["acme-corp"]["status"] == "interview"
         assert tracker.companies["acme-corp"]["interest"] == 5
         assert tracker.companies["acme-corp"]["current_state"] == "Onsite"
+
+
+class TestCompanyNoteLinkExtraction:
+    """Tests for extracting company note links from tracker."""
+
+    def test_parse_company_note_link(self):
+        """Should parse company note link from tracker entry."""
+        from job_search_mcp.notes.tracker import parse_company_tracking
+
+        text = """# Company Tracking
+
+## Active Interview Pipeline
+
+### Acme Corp
+- **Status:** active
+- **Company Note:** [[Companies/Acme Corp]]
+
+"""
+        tracker = parse_company_tracking(text)
+        assert "acme-corp" in tracker.companies
+        company = tracker.companies["acme-corp"]
+        assert company["company_note"] == "[[Companies/Acme Corp]]"
+        assert company["company_note_link"] == "Companies/Acme Corp"
+        assert company["company_note_path"] == "Companies/Acme Corp.md"
+
+    def test_parse_company_note_link_with_alias(self):
+        """Should parse company note link with alias."""
+        from job_search_mcp.notes.tracker import parse_company_tracking
+
+        text = """# Company Tracking
+
+## Active Interview Pipeline
+
+### Beta Inc
+- **Status:** waiting
+- **Company Note:** [[Companies/Beta Inc|Beta]]
+
+"""
+        tracker = parse_company_tracking(text)
+        assert "beta-inc" in tracker.companies
+        company = tracker.companies["beta-inc"]
+        assert company["company_note"] == "[[Companies/Beta Inc|Beta]]"
+        assert company["company_note_link"] == "Companies/Beta Inc"
+        assert company["company_note_path"] == "Companies/Beta Inc.md"
+
+    def test_parse_no_company_note_link(self):
+        """Should handle missing company note link."""
+        from job_search_mcp.notes.tracker import parse_company_tracking
+
+        text = """# Company Tracking
+
+## Active Interview Pipeline
+
+### Gamma LLC
+- **Status:** active
+
+"""
+        tracker = parse_company_tracking(text)
+        assert "gamma-llc" in tracker.companies
+        company = tracker.companies["gamma-llc"]
+        assert "notes" not in company
+        assert "company_note_link" not in company
+        assert "company_note_path" not in company

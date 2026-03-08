@@ -157,4 +157,15 @@ def _parse_company_properties(content: str) -> dict:
 
         properties[key.lower().replace(" ", "_")] = value
 
+    # Extract company note link if present
+    if "company_note" in properties:
+        note_value = properties["company_note"]
+        # Extract first wiki link
+        import re
+        match = re.search(r"\[\[([^|\]]+)(?:\|[^\]]+)?\]\]", note_value)
+        if match:
+            link = match.group(1)
+            properties["company_note_link"] = link
+            properties["company_note_path"] = link + (".md" if not link.endswith(".md") else "")
+
     return properties
