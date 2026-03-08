@@ -60,12 +60,21 @@ class JobSearchService:
             return None
         
         company_entry = tracker.companies[company_key]
-        if "company_note_path" not in company_entry:
-            return None
         
-        # Resolve path from tracker
-        note_path = self._vault_root / company_entry["company_note_path"]
-        if not note_path.exists():
+        # Try company_note_path first, then fall back to parsing notes field
+        note_path = None
+        if "company_note_path" in company_entry:
+            note_path = self._vault_root / company_entry["company_note_path"]
+        elif "notes" in company_entry:
+            # Parse wikilink from notes field
+            import re
+            notes = company_entry["notes"]
+            match = re.search(r'\[\[([^\]]+)\]\]', notes)
+            if match:
+                link = match.group(1)
+                note_path = self._vault_root / (link + ".md" if not link.endswith(".md") else link)
+        
+        if not note_path or not note_path.exists():
             return None
         
         content = note_path.read_text()

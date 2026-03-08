@@ -11,6 +11,8 @@ from .utils import parse_sections, parse_date_field
 # Pre-compile time parsing patterns
 _TIME_12H_PATTERN = re.compile(r"^(\d{1,2}):(\d{2})\s*(AM|PM)$", re.IGNORECASE)
 _TIME_24H_PATTERN = re.compile(r"^(\d{1,2}):(\d{2})$")
+# Pattern to match time range at start of activity line
+TIME_RANGE_PATTERN = re.compile(r"^\d{1,2}:\d{2}\s*(?:AM|PM)?\s*-\s*\d{1,2}:\d{2}\s*(?:AM|PM)?:", re.IGNORECASE)
 
 
 @dataclass
@@ -216,20 +218,16 @@ def _parse_activity_blocks(activity_text: str) -> list[ActivityBlock]:
         line = line[1:].strip()
 
         # Parse: "9:00 AM - 11:00 AM: Description - Status - Note"
-        if ":" not in line:
+        # Find the colon that separates time from description
+        # Look for pattern: "TIME - TIME: " where TIME contains AM/PM
+        match = TIME_RANGE_PATTERN.match(line)
+        if not match:
             continue
-
-        colon_idx = line.rfind(":")
-        if colon_idx == -1:
-            continue
-
-        time_part = line[:colon_idx].strip()
-        rest = line[colon_idx + 1:].strip()
+        
+        time_part = match.group(0).rstrip(":")
+        rest = line[len(match.group(0)):].strip()
 
         # Parse time range
-        if "-" not in time_part:
-            continue
-
         time_parts = time_part.split("-", 1)
         if len(time_parts) != 2:
             continue
