@@ -51,13 +51,22 @@ class JobSearchService:
 
     def read_company_note(self, company_key: str) -> Optional[CompanyRecord]:
         """Read a company note from the vault."""
-        companies_dir = get_companies_dir(self._vault_root)
-        # Try to find the file (company name might have different casing)
-        for file_path in companies_dir.glob("*.md"):
-            content = file_path.read_text()
-            if f"company_key: {company_key}" in content:
-                return parse_company_note(content)
-        return None
+        # Read tracker first
+        tracker = self.read_company_tracking()
+        if not tracker or company_key not in tracker.companies:
+            return None
+        
+        company_entry = tracker.companies[company_key]
+        if "company_note_path" not in company_entry:
+            return None
+        
+        # Resolve path from tracker
+        note_path = self._vault_root / company_entry["company_note_path"]
+        if not note_path.exists():
+            return None
+        
+        content = note_path.read_text()
+        return parse_company_note(content)
 
     def write_company_note(self, record: CompanyRecord) -> None:
         """Write a company note to the vault."""

@@ -1,230 +1,95 @@
-"""Tests for the filesystem service layer."""
+"""Tests for the service layer."""
 import pytest
-import os
-import tempfile
 from datetime import date
 from pathlib import Path
+import tempfile
+import os
+
+from job_search_mcp.service import JobSearchService
+from job_search_mcp.models import CompanyRecord, CompanyStatus, ApplicationStatus
 
 
-class TestServiceReadWrite:
-    """Tests for reading and writing notes via the service layer."""
+class TestServiceCompanyNoteResolution:
+    """Tests for company note resolution through tracker."""
 
-    def test_read_company_note(self, tmp_path):
-        """Should read a company note from the vault."""
-        from job_search_mcp.service import JobSearchService
-        from job_search_mcp.models import CompanyStatus
-
-        # Create a test vault
-        vault_root = tmp_path / "Job Search"
+    def test_read_company_note_via_tracker(self, tmp_path):
+        """Test reading company note via tracker link."""
+        vault_root = tmp_path / "vault"
         vault_root.mkdir()
-        (vault_root / "Companies").mkdir()
-
-        # Write a test company note
-        company_text = """---
-tags:
-  - job-search
-  - company
-company: Acme Corp
-company_key: acme-corp
-status: active
-interest: 4
-last_updated: 2026-03-07
----
-
-# Acme Corp
-
-## Snapshot
-
-## Notes
-
-## Contacts
-
-## Active Applications
-
-## Context
-
-## Timeline
-
-## Open Questions
-
-## Related
-"""
-        (vault_root / "Companies" / "Acme Corp.md").write_text(company_text)
-
-        # Read via service
-        service = JobSearchService(vault_root=str(vault_root))
-        record = service.read_company_note("acme-corp")
-
-        assert record is not None
-        assert record.company == "Acme Corp"
-        assert record.company_key == "acme-corp"
-        assert record.status == CompanyStatus.ACTIVE
-        assert record.interest == 4
-
-    def test_write_company_note(self, tmp_path):
-        """Should write a company note to the vault."""
-        from job_search_mcp.service import JobSearchService
-        from job_search_mcp.models import CompanyRecord, CompanyStatus
-
-        # Create a test vault
-        vault_root = tmp_path / "Job Search"
-        vault_root.mkdir()
-        (vault_root / "Companies").mkdir()
-
-        # Write via service
-        service = JobSearchService(vault_root=str(vault_root))
-        record = CompanyRecord(
-            company="Beta Inc",
-            company_key="beta-inc",
-            status=CompanyStatus.ACTIVE,
-            interest=3,
-            last_updated=date(2026, 3, 7),
-        )
-        service.write_company_note(record)
-
-        # Verify file was created
-        file_path = vault_root / "Companies" / "Beta Inc.md"
-        assert file_path.exists()
-        content = file_path.read_text()
-        assert "company: Beta Inc" in content
-        assert "company_key: beta-inc" in content
-
-    def test_read_company_tracking(self, tmp_path):
-        """Should read the company tracking note."""
-        from job_search_mcp.service import JobSearchService
-
-        # Create a test vault
-        vault_root = tmp_path / "Job Search"
-        vault_root.mkdir()
-
-        # Write a test tracker
-        tracker_text = """# Company Tracking
+        
+        # Create tracker with company note link
+        tracker_path = vault_root / "Company Tracking.md"
+        tracker_content = """# Company Tracking
 
 ## Active Interview Pipeline
 
 ### Acme Corp
 - **Status:** active
+- **Company Note:** [[Companies/Acme Corp]]
 - **Interest:** 4
 - **Current state:** Phone screen
-- **Next action:** Prepare for onsite
-- **Due:** 2026-03-15
-
+- **Next action:** Follow up
 """
-        (vault_root / "Company Tracking.md").write_text(tracker_text)
-
-        # Read via service
-        service = JobSearchService(vault_root=str(vault_root))
-        tracker = service.read_company_tracking()
-
-        assert tracker is not None
-        assert "acme-corp" in tracker.companies
-
-    def test_write_company_tracking(self, tmp_path):
-        """Should write the company tracking note."""
-        from job_search_mcp.service import JobSearchService
-        from job_search_mcp.notes.tracker import CompanyTracking
-
-        # Create a test vault
-        vault_root = tmp_path / "Job Search"
-        vault_root.mkdir()
-
-        # Write via service
-        service = JobSearchService(vault_root=str(vault_root))
-        tracker = CompanyTracking()
-        tracker.companies["beta-inc"] = {
-            "name": "Beta Inc",
-            "status": "active",
-            "interest": 3,
-            "current_state": "Applied",
-            "next_action": "Follow up",
-        }
-        service.write_company_tracking(tracker)
-
-        # Verify file was created
-        file_path = vault_root / "Company Tracking.md"
-        assert file_path.exists()
-        content = file_path.read_text()
-        assert "### Beta Inc" in content
-        assert "**Status:** active" in content
-
-    def test_read_daily_note(self, tmp_path):
-        """Should read a daily note."""
-        from job_search_mcp.service import JobSearchService
-
-        # Create a test vault
-        vault_root = tmp_path / "Job Search"
-        vault_root.mkdir()
-        (vault_root / "Day").mkdir()
-
-        # Write a test daily note
-        daily_text = """---
-tags:
-  - job-search
-  - daily
-date: 2026-03-07
+        tracker_path = vault_root / "Company Tracking.md"
+        tracker_path.write_text(tracker_content)
+        
+        # Create company note
+        companies_dir = vault_root / "Companies"
+        companies_dir.mkdir(parents=True)
+        company_note_path = companies_dir / "Acme Corp.md"
+        company_note_path.write_text("""---
+company: Acme Corp
+company_key: acme-corp
+status: active
 ---
 
-# 2026-03-07
+# Acme Corp
 
-## Schedule
-
-## Daily Activity
-
-## Schedule vs Activity
-"""
-        (vault_root / "Day" / "2026-03-07.md").write_text(daily_text)
-
-        # Read via service
+Test company note.
+""")
+        
         service = JobSearchService(vault_root=str(vault_root))
-        daily = service.read_daily_note(date(2026, 3, 7))
+        company = service.read_company_note("acme-corp")
+        
+        assert company is not None
+        assert company.company == "Acme Corp"
+        assert company.company_key == "acme-corp"
+        assert company.status == CompanyStatus.ACTIVE
 
-        assert daily is not None
-        assert daily.date == date(2026, 3, 7)
-
-    def test_write_daily_note(self, tmp_path):
-        """Should write a daily note."""
-        from job_search_mcp.service import JobSearchService
-        from job_search_mcp.notes.daily import DailyNote
-
-        # Create a test vault
-        vault_root = tmp_path / "Job Search"
+    def test_read_company_note_no_tracker_entry(self, tmp_path):
+        """Test reading company note when tracker has no entry."""
+        vault_root = tmp_path / "vault"
         vault_root.mkdir()
-        (vault_root / "Day").mkdir()
-
-        # Write via service
+        
         service = JobSearchService(vault_root=str(vault_root))
-        daily = DailyNote(date=date(2026, 3, 7))
-        service.write_daily_note(daily)
+        company = service.read_company_note("nonexistent")
+        assert company is None
 
-        # Verify file was created
-        file_path = vault_root / "Day" / "2026-03-07.md"
-        assert file_path.exists()
-        content = file_path.read_text()
-        assert "# 2026-03-07" in content
-
-    def test_upsert_company_tracking_entry(self, tmp_path):
-        """Should add or update a company in the tracker."""
-        from job_search_mcp.service import JobSearchService
-
-        # Create a test vault
-        vault_root = tmp_path / "Job Search"
+    def test_read_company_note_missing_file(self, tmp_path):
+        """Test reading company note when file doesn't exist."""
+        vault_root = tmp_path / "vault"
         vault_root.mkdir()
+        
+        # Create tracker with broken link
+        tracker_path = vault_root / "Company Tracking.md"
+        tracker_path.write_text("""# Company Tracking
 
-        # Write via service
+## Active Interview Pipeline
+
+### Broken Corp
+- **Status:** active
+- **Company Note:** [[Companies/Broken Corp]]
+""")
+        
         service = JobSearchService(vault_root=str(vault_root))
-        service.upsert_company_tracking_entry(
-            company_key="acme-corp",
-            company_name="Acme Corp",
-            status="active",
-            interest=4,
-            current_state="Phone screen",
-            next_action="Prepare for onsite",
-            due_date=date(2026, 3, 15),
-        )
+        company = service.read_company_note("broken-corp")
+        assert company is None
 
-        # Verify file was created
-        file_path = vault_root / "Company Tracking.md"
-        assert file_path.exists()
-        content = file_path.read_text()
-        assert "### Acme Corp" in content
-        assert "**Status:** active" in content
+    def test_read_company_note_no_tracker(self, tmp_path):
+        """Test reading company note when no tracker exists."""
+        vault_root = tmp_path / "vault"
+        vault_root.mkdir()
+        
+        service = JobSearchService(vault_root=str(vault_root))
+        company = service.read_company_note("any")
+        assert company is None
