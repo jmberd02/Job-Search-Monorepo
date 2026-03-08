@@ -223,7 +223,7 @@ def _parse_contacts_table(table_text: str) -> list[Contact]:
     for line in lines[2:]:
         if not line.strip():
             continue
-        parts = [p.strip() for p in line.split("|")]
+        parts = [p.strip() for p in line.split("|") if p.strip()]
         if len(parts) >= 5:
             last_contact = None
             if parts[3]:

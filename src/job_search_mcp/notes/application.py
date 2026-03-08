@@ -283,7 +283,7 @@ def _parse_tasks_list(tasks_text: str) -> list[Task]:
         if "(due:" in desc:
             match = desc.rsplit("(due:", 1)
             if len(match) == 2:
-                due_str = match[1].rstrip(")")
+                due_str = match[1].rstrip(")").strip()
                 try:
                     due_date = date.fromisoformat(due_str)
                 except ValueError:

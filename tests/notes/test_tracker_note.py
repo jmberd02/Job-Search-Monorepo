@@ -35,7 +35,7 @@ class TestParseCompanyTracking:
 - **Applications:**
   - [[Applications/2026-03/Acme Corp - Senior Engineer.md]]
 - **Contacts:** John Doe (recruiter)
-- **Notes:** [[Companies/Acme Corp]]
+- **Company Note:** [[Companies/Acme Corp]]
 
 """
         tracker = parse_company_tracking(text)
