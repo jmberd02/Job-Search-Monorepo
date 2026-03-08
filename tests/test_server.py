@@ -42,9 +42,24 @@ class TestMCPTools:
         from job_search_mcp.server import read_company_note
         from job_search_mcp.service import JobSearchService
         from job_search_mcp.models import CompanyRecord, CompanyStatus
+        from pathlib import Path
 
         with tempfile.TemporaryDirectory() as tmp:
             service = JobSearchService(vault_root=tmp)
+
+            # Create tracker entry first
+            from job_search_mcp.notes.tracker import CompanyTracking, render_company_tracking
+            tracker = CompanyTracking()
+            tracker.companies["acme-corp"] = {
+                "name": "Acme Corp",
+                "status": "active",
+                "notes": "[[Companies/Acme Corp]]",
+                "company_note": "[[Companies/Acme Corp]]",
+                "company_note_link": "Companies/Acme Corp",
+                "company_note_path": "Companies/Acme Corp.md",
+            }
+            tracker_path = Path(tmp) / "Company Tracking.md"
+            tracker_path.write_text(render_company_tracking(tracker))
 
             # Create a company note
             record = CompanyRecord(
@@ -68,9 +83,24 @@ class TestMCPTools:
         from job_search_mcp.server import write_company_note, read_company_note
         from job_search_mcp.service import JobSearchService
         from job_search_mcp.models import CompanyRecord, CompanyStatus
+        from pathlib import Path
 
         with tempfile.TemporaryDirectory() as tmp:
             service = JobSearchService(vault_root=tmp)
+
+            # Create tracker entry first
+            from job_search_mcp.notes.tracker import CompanyTracking, render_company_tracking
+            tracker = CompanyTracking()
+            tracker.companies["beta-inc"] = {
+                "name": "Beta Inc",
+                "status": "active",
+                "notes": "[[Companies/Beta Inc]]",
+                "company_note": "[[Companies/Beta Inc]]",
+                "company_note_link": "Companies/Beta Inc",
+                "company_note_path": "Companies/Beta Inc.md",
+            }
+            tracker_path = Path(tmp) / "Company Tracking.md"
+            tracker_path.write_text(render_company_tracking(tracker))
 
             # Write via operation
             record = CompanyRecord(
@@ -87,6 +117,7 @@ class TestMCPTools:
 
             assert result is not None
             assert result.company == "Beta Inc"
+            assert result.company_key == "beta-inc"
 
     def test_upsert_tracker_entry_operation(self):
         """upsert_company_tracking_entry should work."""

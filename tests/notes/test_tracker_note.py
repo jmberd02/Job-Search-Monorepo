@@ -209,21 +209,38 @@ class TestCompanyNoteLinkExtraction:
         assert company["company_note_link"] == "Companies/Beta Inc"
         assert company["company_note_path"] == "Companies/Beta Inc.md"
 
-    def test_parse_no_company_note_link(self):
-        """Should handle missing company note link."""
-        from job_search_mcp.notes.tracker import parse_company_tracking
+    def test_upsert_preserves_company_note_link(self):
+        """Should preserve company note link when upserting."""
+        from job_search_mcp.notes.tracker import upsert_company_tracking_entry, CompanyTracking
 
-        text = """# Company Tracking
+        tracker = CompanyTracking()
+        tracker = upsert_company_tracking_entry(
+            tracker,
+            company_key="acme-corp",
+            company_name="Acme Corp",
+            status="active",
+            interest=4,
+            current_state="Phone screen",
+            next_action="Follow up",
+            notes="[[Companies/Acme Corp]]",
+        )
+        
+        assert tracker.companies["acme-corp"]["notes"] == "[[Companies/Acme Corp]]"
 
-## Active Interview Pipeline
+    def test_upsert_defaults_company_note_link(self):
+        """Should default company note link when none provided."""
+        from job_search_mcp.notes.tracker import upsert_company_tracking_entry, CompanyTracking
 
-### Gamma LLC
-- **Status:** active
-
-"""
-        tracker = parse_company_tracking(text)
-        assert "gamma-llc" in tracker.companies
-        company = tracker.companies["gamma-llc"]
-        assert "notes" not in company
-        assert "company_note_link" not in company
-        assert "company_note_path" not in company
+        tracker = CompanyTracking()
+        tracker = upsert_company_tracking_entry(
+            tracker,
+            company_key="acme-corp",
+            company_name="Acme Corp",
+            status="active",
+            interest=4,
+            current_state="Phone screen",
+            next_action="Follow up",
+            # No notes provided
+        )
+        
+        assert tracker.companies["acme-corp"]["notes"] == "[[Companies/Acme Corp]]"

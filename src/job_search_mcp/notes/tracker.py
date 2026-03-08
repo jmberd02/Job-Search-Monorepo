@@ -66,7 +66,7 @@ def render_company_tracking(tracker: CompanyTracking) -> str:
             content += f"- **Contacts:** {company['contacts']}\n"
 
         if company.get("notes"):
-            content += f"- **Notes:** {company['notes']}\n"
+            content += f"- **Company Note:** {company['notes']}\n"
 
         content += "\n"
 
@@ -102,6 +102,10 @@ def upsert_company_tracking_entry(
     if company_key not in tracker.companies:
         tracker.companies[company_key] = {}
 
+    # Default company note link if not provided
+    if not notes:
+        notes = f"[[Companies/{company_name}]]"
+
     tracker.companies[company_key].update({
         "name": company_name,
         "status": status,
@@ -111,7 +115,7 @@ def upsert_company_tracking_entry(
         "due": due_date,
         "applications": applications or [],
         "contacts": contacts or "",
-        "notes": notes or "",
+        "notes": notes,
     })
 
     return tracker
