@@ -5,6 +5,11 @@ from datetime import date
 from typing import Optional
 import re
 
+# Pre-compile regex patterns for performance
+_COMPANY_PATTERN = re.compile(r"### (.+?)\n((?:(?!\n### ).)*)", re.DOTALL)
+_APP_INDEX_PATTERN = re.compile(r"## Application Index\n((?:(?!\n## ).)*)", re.DOTALL)
+_WIKILINK_PATTERN = re.compile(r"\[\[([^|\]]+)(?:\|[^\]]+)?\]\]")
+
 
 @dataclass
 class CompanyTracking:
@@ -19,8 +24,7 @@ def parse_company_tracking(text: str) -> CompanyTracking:
     tracker = CompanyTracking()
 
     # Find company sections (### Company Name)
-    company_pattern = r"### (.+?)\n((?:(?!\n### ).)*)"
-    matches = re.findall(company_pattern, text, re.DOTALL)
+    matches = _COMPANY_PATTERN.findall(text)
 
     for name_match in matches:
         company_name = name_match[0]
@@ -36,8 +40,7 @@ def parse_company_tracking(text: str) -> CompanyTracking:
         tracker.companies[company_key] = company_data
 
     # Parse application index if present
-    app_index_pattern = r"## Application Index\n((?:(?!\n## ).)*)"
-    app_match = re.search(app_index_pattern, text, re.DOTALL)
+    app_match = _APP_INDEX_PATTERN.search(text)
     if app_match:
         app_content = app_match.group(1)
         for line in app_content.split("\n"):
@@ -54,57 +57,49 @@ def parse_company_tracking(text: str) -> CompanyTracking:
 
 def render_company_tracking(tracker: CompanyTracking) -> str:
     """Render a CompanyTracking into markdown text."""
-    content = "# Company Tracking\n\n"
-
-    # Active Interview Pipeline
-    content += "## Active Interview Pipeline\n\n"
+    parts = ["# Company Tracking\n\n", "## Active Interview Pipeline\n\n"]
 
     for company_key, company in tracker.companies.items():
         name = company.get("name", company_key)
-        content += f"### {name}\n"
-        content += f"- **Status:** {company.get('status', 'unknown')}\n"
-        content += f"- **Interest:** {company.get('interest', 3)}\n"
-        content += f"- **Current state:** {company.get('current_state', '')}\n"
-        content += f"- **Next action:** {company.get('next_action', '')}\n"
+        parts.append(f"### {name}\n")
+        parts.append(f"- **Status:** {company.get('status', 'unknown')}\n")
+        parts.append(f"- **Interest:** {company.get('interest', 3)}\n")
+        parts.append(f"- **Current state:** {company.get('current_state', '')}\n")
+        parts.append(f"- **Next action:** {company.get('next_action', '')}\n")
 
         if company.get("due"):
             due = company["due"]
             due_str = due.isoformat() if isinstance(due, date) else str(due)
-            content += f"- **Due:** {due_str}\n"
+            parts.append(f"- **Due:** {due_str}\n")
 
         if company.get("applications"):
-            content += "- **Applications:**\n"
+            parts.append("- **Applications:**\n")
             for app in company["applications"]:
-                content += f"  - {app}\n"
+                parts.append(f"  - {app}\n")
 
         if company.get("contacts"):
-            content += f"- **Contacts:** {company['contacts']}\n"
+            parts.append(f"- **Contacts:** {company['contacts']}\n")
 
         if company.get("notes"):
-            content += f"- **Company Note:** {company['notes']}\n"
+            parts.append(f"- **Company Note:** {company['notes']}\n")
 
-        content += "\n"
+        parts.append("\n")
 
-    # Waiting / In Flight
-    content += "## Waiting / In Flight\n\n"
-
-    # Applied / No Response
-    content += "## Applied / No Response\n\n"
-
-    # Networking Leads
-    content += "## Networking Leads\n\n"
-
-    # Closed Out
-    content += "## Closed Out\n\n"
+    parts.extend([
+        "## Waiting / In Flight\n\n",
+        "## Applied / No Response\n\n",
+        "## Networking Leads\n\n",
+        "## Closed Out\n\n"
+    ])
 
     # Application Index
     if tracker.applications:
-        content += "## Application Index\n\n"
+        parts.append("## Application Index\n\n")
         for app_key, app_path in sorted(tracker.applications.items()):
-            content += f"- {app_key}: {app_path}\n"
-        content += "\n"
+            parts.append(f"- {app_key}: {app_path}\n")
+        parts.append("\n")
 
-    return content
+    return "".join(parts)
 
 
 def upsert_company_tracking_entry(
@@ -150,8 +145,7 @@ def _slugify(text: str) -> str:
 
 def _extract_first_wikilink(value: str) -> str | None:
     """Extract the first Obsidian wiki link from a string."""
-    import re
-    match = re.search(r"\[\[([^|\]]+)(?:\|[^\]]+)?\]\]", value)
+    match = _WIKILINK_PATTERN.search(value)
     return match.group(1) if match else None
 
 

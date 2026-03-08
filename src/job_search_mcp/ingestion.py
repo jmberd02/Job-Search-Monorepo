@@ -3,9 +3,12 @@
 from datetime import date
 from typing import Optional
 
-from .models import CompanyRecord, CompanySignal, SignalType
+from .models import CompanyRecord, CompanySignal, CompanyStatus, SignalType
 from .notes.company import append_company_timeline
 from .service import JobSearchService
+
+# Stage to status mapping
+_CLOSED_STAGES = {"rejected", "withdrawn", "ghosted"}
 
 
 def classify_signal(
@@ -75,35 +78,19 @@ def ingest_signal(service: JobSearchService, signal: CompanySignal) -> CompanyRe
     return existing
 
 
-def _infer_status(signal: CompanySignal) -> "CompanyStatus":
+def _infer_status(signal: CompanySignal) -> CompanyStatus:
     """Infer company status from signal type."""
-    from .models import CompanyStatus
-
     if signal.signal_type == SignalType.RECRUITER_MESSAGE:
         return CompanyStatus.NETWORKING
-    elif signal.signal_type == SignalType.APPLICATION_EVENT:
-        return CompanyStatus.ACTIVE
-    elif signal.signal_type == SignalType.INTERVIEW_TRANSCRIPT:
-        return CompanyStatus.ACTIVE
-    else:
-        return CompanyStatus.ACTIVE
+    return CompanyStatus.ACTIVE
 
 
-def _stage_to_status(stage: str) -> "CompanyStatus":
+def _stage_to_status(stage: str) -> CompanyStatus:
     """Convert a stage string to company status."""
-    from .models import CompanyStatus
-
     stage_lower = stage.lower()
-    if stage_lower in ("applied", "screening", "screen"):
-        return CompanyStatus.ACTIVE
-    elif stage_lower in ("interview", "onsite"):
-        return CompanyStatus.ACTIVE
-    elif stage_lower in ("offer"):
-        return CompanyStatus.ACTIVE
-    elif stage_lower in ("rejected", "withdrawn", "ghosted"):
+    if stage_lower in _CLOSED_STAGES:
         return CompanyStatus.CLOSED
-    else:
-        return CompanyStatus.ACTIVE
+    return CompanyStatus.ACTIVE
 
 
 def _update_tracker_from_company(service: JobSearchService, company: CompanyRecord, stage: str = None):

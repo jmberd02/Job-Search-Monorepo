@@ -35,6 +35,9 @@ class JobSearchService:
 
         # Ensure directories exist
         self._ensure_directories()
+        
+        # Cache for tracker to avoid repeated reads
+        self._tracker_cache: Optional[CompanyTracking] = None
 
     def _ensure_directories(self):
         """Ensure required directories exist."""
@@ -77,17 +80,8 @@ class JobSearchService:
 
     def list_company_notes(self) -> list[str]:
         """List all company keys in the vault."""
-        companies_dir = get_companies_dir(self._vault_root)
-        keys = []
-        for file_path in companies_dir.glob("*.md"):
-            content = file_path.read_text()
-            if "company_key:" in content:
-                for line in content.split("\n"):
-                    if line.startswith("company_key:"):
-                        key = line.split(":", 1)[1].strip()
-                        keys.append(key)
-                        break
-        return keys
+        tracker = self.read_company_tracking()
+        return list(tracker.companies.keys())
 
     # Application Note Operations
 
@@ -127,16 +121,22 @@ class JobSearchService:
 
     def read_company_tracking(self) -> CompanyTracking:
         """Read the company tracking note."""
+        if self._tracker_cache is not None:
+            return self._tracker_cache
+        
         tracker_path = get_tracker_path(self._vault_root)
         if tracker_path.exists():
-            return parse_company_tracking(tracker_path.read_text())
-        return CompanyTracking()
+            self._tracker_cache = parse_company_tracking(tracker_path.read_text())
+        else:
+            self._tracker_cache = CompanyTracking()
+        return self._tracker_cache
 
     def write_company_tracking(self, tracker: CompanyTracking) -> None:
         """Write the company tracking note."""
         tracker_path = get_tracker_path(self._vault_root)
         text = render_company_tracking(tracker)
         tracker_path.write_text(text)
+        self._tracker_cache = tracker  # Update cache
 
     def upsert_company_tracking_entry(
         self,
