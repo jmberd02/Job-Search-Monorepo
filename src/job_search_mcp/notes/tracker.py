@@ -126,6 +126,13 @@ def _slugify(text: str) -> str:
     return text.lower().replace(" ", "-").replace("_", "-")
 
 
+def _extract_first_wikilink(value: str) -> str | None:
+    """Extract the first Obsidian wiki link from a string."""
+    import re
+    match = re.search(r"\[\[([^|\]]+)(?:\|[^\]]+)?\]\]", value)
+    return match.group(1) if match else None
+
+
 def _parse_company_properties(content: str) -> dict:
     """Parse company properties from markdown content."""
     properties = {}
@@ -164,11 +171,8 @@ def _parse_company_properties(content: str) -> dict:
     # Extract company note link if present
     if "company_note" in properties:
         note_value = properties["company_note"]
-        # Extract first wiki link
-        import re
-        match = re.search(r"\[\[([^|\]]+)(?:\|[^\]]+)?\]\]", note_value)
-        if match:
-            link = match.group(1)
+        link = _extract_first_wikilink(note_value)
+        if link:
             properties["company_note_link"] = link
             properties["company_note_path"] = link + (".md" if not link.endswith(".md") else "")
 
