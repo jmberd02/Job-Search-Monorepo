@@ -21,7 +21,36 @@ It should answer, at a glance:
 - Who are the key contacts?
 - What should I follow up on next?
 
-## Proposed Structure
+## Folder Structure
+
+```
+Job Search Obsidian/Job Search/
+├── Company Tracking.md          ← dashboard + Recruiters & Contacts section
+├── Companies/                   ← one file per company
+│   ├── Beacon AI.md
+│   ├── Applied Intuition.md
+│   ├── Atomic Machines.md
+│   ├── Zoox.md
+│   └── ...
+├── Calls/                       ← call transcripts, referenced from company files
+├── Applications/                ← application notes, referenced from company files
+├── Pre-Interview Notes/         ← prep notes, referenced from company files
+├── Day/                         ← daily notes
+└── Leetcode/                    ← unchanged
+```
+
+Each `Companies/<Company Name>.md` contains all detail for that company:
+- Role, stage, comp, location, interest level
+- Contacts list
+- Interview history and outcomes
+- Links to relevant `Calls/` and `Applications/` notes
+- Summary notes and lessons
+
+`Company Tracking.md` references company files via `[[Companies/Beacon AI]]` etc.
+
+`Recruiters.md` is dissolved — recruiter and contact records live in the Recruiters & Contacts section of `Company Tracking.md`.
+
+## Proposed Structure of Company Tracking.md
 
 ### 1. Needs Action This Week
 Purpose:
@@ -41,7 +70,7 @@ Purpose:
 - Recruiter screen, technical rounds, onsite, references, etc.
 
 Each entry should include:
-- company
+- company (link to `[[Companies/Name]]`)
 - role
 - status/stage
 - contacts
@@ -49,7 +78,6 @@ Each entry should include:
 - location
 - interest
 - next action
-- related links
 
 ### 3. Waiting / In Flight
 Purpose:
@@ -57,23 +85,21 @@ Purpose:
 - No immediate action unless a deadline passes
 
 Each entry should include:
-- company
+- company (link to `[[Companies/Name]]`)
 - latest event
 - waiting for
 - follow-up date
-- related links
 
 ### 4. Applied / No Response
 Purpose:
 - Applications submitted, no active conversation yet
 
 Each entry should include:
-- company
+- company (link to `[[Companies/Name]]`)
 - role
 - application date
 - priority
 - follow-up date
-- related links
 
 ### 5. Networking Leads
 Purpose:
@@ -85,7 +111,6 @@ Each entry should include:
 - source of intro
 - current state
 - next action
-- related links
 
 ### 6. Closed Out
 Purpose:
@@ -93,15 +118,14 @@ Purpose:
 - Keep compact for reference, not storytelling
 
 Each entry should include:
-- company
+- company (link to `[[Companies/Name]]`)
 - outcome
 - date
 - short reason
-- related links
 
 ### 7. Recruiters & Contacts
 Purpose:
-- Keep recruiter/contact records in the same file for now
+- Lives directly in Company Tracking.md — no separate file
 - Separate from pipeline sections so they do not clutter company workflow
 
 Each entry should include:
@@ -114,7 +138,7 @@ Each entry should include:
 
 ## What Should Move Out Of Company Tracking
 
-These should live in separate linked notes:
+These should live in `Companies/<Name>.md` or existing linked notes:
 - raw recruiter call transcripts
 - detailed interview notes
 - long-form company research
@@ -135,12 +159,13 @@ Keep only high-signal operational data:
 - next action
 - due date
 - one-line notes
-- links to detailed notes
+- links to `[[Companies/Name]]`
 
 ## Suggested Entry Format
 
-Example:
+### Company Tracking.md entry
 
+```
 ### Beacon AI
 - Status: Onsite completed Mar 6, 2026
 - Role: APAS Engineer
@@ -150,10 +175,34 @@ Example:
 - Interest: 3.5/5
 - Next action: Wait for next-step update
 - Due: Mar 10, 2026
+- Notes: [[Companies/Beacon AI]]
+```
+
+### Companies/Beacon AI.md
+
+```
+## Beacon AI
+
+- Role: APAS Engineer
+- Stage: Onsite completed Mar 6, 2026
+- Contacts: Rebecca (recruiter), Michael (hiring manager), Rohan (tech interviewer)
+- Comp: L4 160-180k / L5 175-200k + equity
+- Location: San Carlos hybrid
+- Interest: 3.5/5
 - Summary: Strong fit, interesting technical scope, commute and work-hours are concerns
-- Related:
-  - [[Calls/Feb 23/Beacon AI Technical Interview]]
-  - [[Calls/Feb 11/Beacon AI Call]]
+
+## Interview History
+
+| Date | Event | Notes |
+|------|-------|-------|
+| Feb 11 | Recruiter call | [[Calls/Feb 11/Beacon AI Call]] |
+| Feb 23 | Technical interview with Rohan | [[Calls/Feb 23/Beacon AI Technical Interview]] |
+| Mar 6 | Onsite | — |
+
+## Notes
+
+...
+```
 
 ## Benefits Of This Reorg
 
@@ -163,7 +212,9 @@ Example:
 - Cleaner separation between source notes and dashboard state
 - Better prioritization of follow-ups and deadlines
 - Easier to maintain as pipeline grows
+- One canonical file per company for all deep context
 
 ## Guiding Rule
 
 `Company Tracking.md` should be a control panel, not a transcript archive.
+Each company's full story lives in `Companies/<Name>.md`.
