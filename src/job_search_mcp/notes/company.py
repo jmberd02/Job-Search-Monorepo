@@ -12,6 +12,7 @@ from job_search_mcp.models import (
     Contact,
     CompanySignal,
 )
+from .utils import parse_sections, parse_date_field, escape_table_cell
 
 
 def parse_company_note(text: str) -> CompanyRecord:
@@ -29,15 +30,9 @@ def parse_company_note(text: str) -> CompanyRecord:
     company_key = frontmatter.get("company_key", "")
     status_str = frontmatter.get("status", "active")
     interest = frontmatter.get("interest", 3)
-    last_updated_str = frontmatter.get("last_updated", "")
+    last_updated = parse_date_field(frontmatter.get("last_updated", ""))
 
     status = CompanyStatus(status_str)
-    if isinstance(last_updated_str, date):
-        last_updated = last_updated_str
-    elif last_updated_str:
-        last_updated = date.fromisoformat(last_updated_str)
-    else:
-        last_updated = date.today()
 
     # Initialize record
     record = CompanyRecord(
@@ -49,7 +44,7 @@ def parse_company_note(text: str) -> CompanyRecord:
     )
 
     # Parse content sections
-    sections = _parse_sections(content)
+    sections = parse_sections(content)
 
     # Parse Snapshot
     if "snapshot" in sections:
@@ -64,10 +59,7 @@ def parse_company_note(text: str) -> CompanyRecord:
                 if "Primary next action" in key:
                     record.primary_next_action = value
                 elif "Next action due" in key:
-                    try:
-                        record.next_action_due = date.fromisoformat(value)
-                    except ValueError:
-                        pass
+                    record.next_action_due = parse_date_field(value, default=None)
                 elif "Best current role" in key:
                     record.best_current_role = value
                 elif "Location" in key:
@@ -94,6 +86,8 @@ def parse_company_note(text: str) -> CompanyRecord:
 
 def render_company_note(record: CompanyRecord) -> str:
     """Render a CompanyRecord into markdown text."""
+    parts = []
+    
     # Frontmatter
     frontmatter = {
         "tags": ["job-search", "company"],
@@ -103,14 +97,13 @@ def render_company_note(record: CompanyRecord) -> str:
         "interest": record.interest,
         "last_updated": record.last_updated.isoformat(),
     }
-
-    frontmatter_str = "---\n" + yaml.dump(frontmatter, default_flow_style=False) + "---\n"
+    parts.append("---\n" + yaml.dump(frontmatter, default_flow_style=False) + "---\n")
 
     # Content
-    content = f"# {record.company}\n\n"
+    parts.append(f"# {record.company}\n\n")
 
     # Snapshot
-    content += "## Snapshot\n"
+    parts.append("## Snapshot\n")
     snapshot_items = [
         f"- **Status:** {record.status.value}",
         f"- **Interest:** {record.interest}",
@@ -127,46 +120,45 @@ def render_company_note(record: CompanyRecord) -> str:
         snapshot_items.append(f"- **Commute fit:** {record.commute_fit}")
     if record.comp_range:
         snapshot_items.append(f"- **Comp / range:** {record.comp_range}")
-
-    content += "\n".join(snapshot_items) + "\n\n"
+    parts.append("\n".join(snapshot_items) + "\n\n")
 
     # Notes
-    content += "## Notes\n"
-    content += record.notes if record.notes else ""
-    content += "\n\n"
+    parts.append("## Notes\n")
+    parts.append(record.notes if record.notes else "")
+    parts.append("\n\n")
 
     # Contacts
-    content += "## Contacts\n"
+    parts.append("## Contacts\n")
     if record.contacts:
-        content += "| Name | Role | Source | Last Contact | Notes |\n"
-        content += "|------|------|--------|--------------|-------|\n"
+        parts.append("| Name | Role | Source | Last Contact | Notes |\n")
+        parts.append("|------|------|--------|--------------|-------|\n")
         for contact in record.contacts:
             last_contact = contact.last_contact.isoformat() if contact.last_contact else ""
-            content += f"| {contact.name} | {contact.role} | {contact.source} | {last_contact} | {contact.notes} |\n"
-    content += "\n"
+            parts.append(f"| {escape_table_cell(contact.name)} | {escape_table_cell(contact.role)} | {escape_table_cell(contact.source)} | {last_contact} | {escape_table_cell(contact.notes)} |\n")
+    parts.append("\n")
 
     # Active Applications
-    content += "## Active Applications\n\n"
+    parts.append("## Active Applications\n\n")
 
     # Context
-    content += "## Context\n\n"
+    parts.append("## Context\n\n")
 
     # Timeline
-    content += "## Timeline\n"
+    parts.append("## Timeline\n")
     if record.timeline:
-        content += "| Date | Type | Summary | Source | Linked Note |\n"
-        content += "|------|------|---------|--------|-------------|\n"
+        parts.append("| Date | Type | Summary | Source | Linked Note |\n")
+        parts.append("|------|------|---------|--------|-------------|\n")
         for entry in record.timeline:
-            content += f"| {entry.date.isoformat()} | {entry.entry_type} | {entry.summary} | {entry.source} | {entry.linked_note} |\n"
-    content += "\n"
+            parts.append(f"| {entry.date.isoformat()} | {escape_table_cell(entry.entry_type)} | {escape_table_cell(entry.summary)} | {escape_table_cell(entry.source)} | {escape_table_cell(entry.linked_note)} |\n")
+    parts.append("\n")
 
     # Open Questions
-    content += "## Open Questions\n\n"
+    parts.append("## Open Questions\n\n")
 
     # Related
-    content += "## Related\n"
+    parts.append("## Related\n")
 
-    return frontmatter_str + content
+    return "".join(parts)
 
 
 def append_company_timeline(record: CompanyRecord, signal: CompanySignal) -> CompanyRecord:
@@ -193,50 +185,23 @@ def append_company_timeline(record: CompanyRecord, signal: CompanySignal) -> Com
     return record
 
 
-def _parse_sections(content: str) -> dict[str, str]:
-    """Parse markdown content into sections."""
-    sections = {}
-    current_section = ""
-    current_content = []
-
-    for line in content.split("\n"):
-        if line.startswith("## "):
-            if current_section:
-                sections[current_section.lower()] = "\n".join(current_content)
-            current_section = line[3:].strip()
-            current_content = []
-        else:
-            current_content.append(line)
-
-    if current_section:
-        sections[current_section.lower()] = "\n".join(current_content)
-
-    return sections
-
-
 def _parse_contacts_table(table_text: str) -> list[Contact]:
     """Parse a contacts markdown table."""
     contacts = []
     lines = table_text.strip().split("\n")
 
-    # Skip header and separator
-    for line in lines[2:]:
-        if not line.strip():
+    # Skip header and separator, process data rows
+    for i, line in enumerate(lines):
+        if i < 2 or not line.strip().startswith("|"):
             continue
-        parts = [p.strip() for p in line.split("|") if p.strip()]
+        parts = [p.strip() for p in line.strip().strip("|").split("|")]
         if len(parts) >= 5:
-            last_contact = None
-            if parts[3]:
-                try:
-                    last_contact = date.fromisoformat(parts[3])
-                except ValueError:
-                    pass
             contacts.append(
                 Contact(
                     name=parts[0],
                     role=parts[1],
                     source=parts[2],
-                    last_contact=last_contact,
+                    last_contact=parse_date_field(parts[3], default=None) if parts[3] else None,
                     notes=parts[4],
                 )
             )
@@ -246,25 +211,17 @@ def _parse_contacts_table(table_text: str) -> list[Contact]:
 def _parse_timeline_table(table_text: str) -> list[TimelineEntry]:
     """Parse a timeline markdown table."""
     entries = []
-    lines = [l for l in table_text.strip().split("\n") if l.strip().startswith("|")]
+    lines = table_text.strip().split("\n")
 
-    # Skip header and separator
-    for line in lines[2:]:
-        if not line.strip():
+    # Skip header and separator, process data rows
+    for i, line in enumerate(lines):
+        if i < 2 or not line.strip().startswith("|"):
             continue
-        # Remove leading and trailing pipes, then split
-        line = line.strip().strip("|")
-        parts = [p.strip() for p in line.split("|")]
+        parts = [p.strip() for p in line.strip().strip("|").split("|")]
         if len(parts) >= 5:
-            entry_date = None
-            if parts[0]:
-                try:
-                    entry_date = date.fromisoformat(parts[0])
-                except ValueError:
-                    pass
             entries.append(
                 TimelineEntry(
-                    date=entry_date or date.today(),
+                    date=parse_date_field(parts[0]),
                     entry_type=parts[1],
                     summary=parts[2],
                     source=parts[3],

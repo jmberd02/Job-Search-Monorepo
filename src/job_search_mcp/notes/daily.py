@@ -4,6 +4,13 @@ from dataclasses import dataclass, field
 from datetime import date, time, datetime
 from typing import Optional
 import yaml
+import re
+
+from .utils import parse_sections, parse_date_field
+
+# Pre-compile time parsing patterns
+_TIME_12H_PATTERN = re.compile(r"^(\d{1,2}):(\d{2})\s*(AM|PM)$", re.IGNORECASE)
+_TIME_24H_PATTERN = re.compile(r"^(\d{1,2}):(\d{2})$")
 
 
 @dataclass
@@ -47,18 +54,12 @@ def parse_daily_note(text: str) -> DailyNote:
     content = parts[2] if len(parts) > 2 else ""
 
     # Extract date from frontmatter
-    date_str = frontmatter.get("date", "")
-    if isinstance(date_str, date):
-        note_date = date_str
-    elif date_str:
-        note_date = date.fromisoformat(date_str)
-    else:
-        note_date = date.today()
+    note_date = parse_date_field(frontmatter.get("date", ""))
 
     daily = DailyNote(date=note_date)
 
     # Parse content sections
-    sections = _parse_sections(content)
+    sections = parse_sections(content)
 
     # Parse Schedule
     if "schedule" in sections:
@@ -167,27 +168,6 @@ def refresh_schedule_vs_activity(daily: DailyNote) -> DailyNote:
     return daily
 
 
-def _parse_sections(content: str) -> dict[str, str]:
-    """Parse markdown content into sections."""
-    sections = {}
-    current_section = ""
-    current_content = []
-
-    for line in content.split("\n"):
-        if line.startswith("## "):
-            if current_section:
-                sections[current_section.lower()] = "\n".join(current_content)
-            current_section = line[3:].strip()
-            current_content = []
-        else:
-            current_content.append(line)
-
-    if current_section:
-        sections[current_section.lower()] = "\n".join(current_content)
-
-    return sections
-
-
 def _parse_schedule_blocks(schedule_text: str) -> list[ScheduleBlock]:
     """Parse schedule blocks from markdown."""
     blocks = []
@@ -213,15 +193,12 @@ def _parse_schedule_blocks(schedule_text: str) -> list[ScheduleBlock]:
         if "-" not in time_part:
             continue
 
-        time_parts = time_part.split("-")
+        time_parts = time_part.split("-", 1)
         if len(time_parts) != 2:
             continue
 
-        start_str = time_parts[0].strip()
-        end_str = time_parts[1].strip()
-
-        start_time = _parse_time(start_str)
-        end_time = _parse_time(end_str)
+        start_time = _parse_time(time_parts[0].strip())
+        end_time = _parse_time(time_parts[1].strip())
 
         if start_time and end_time:
             blocks.append(ScheduleBlock(start_time=start_time, end_time=end_time, description=description))
@@ -253,15 +230,12 @@ def _parse_activity_blocks(activity_text: str) -> list[ActivityBlock]:
         if "-" not in time_part:
             continue
 
-        time_parts = time_part.split("-")
+        time_parts = time_part.split("-", 1)
         if len(time_parts) != 2:
             continue
 
-        start_str = time_parts[0].strip()
-        end_str = time_parts[1].strip()
-
-        start_time = _parse_time(start_str)
-        end_time = _parse_time(end_str)
+        start_time = _parse_time(time_parts[0].strip())
+        end_time = _parse_time(time_parts[1].strip())
 
         if not start_time or not end_time:
             continue
@@ -281,19 +255,23 @@ def _parse_time(time_str: str) -> Optional[time]:
     """Parse a time string like '9:00 AM' or '14:30'."""
     time_str = time_str.strip()
 
-    # Try various formats
-    formats = [
-        "%I:%M %p",  # 9:00 AM
-        "%H:%M",     # 14:30
-        "%I %p",     # 9 AM
-        "%H",        # 14
-    ]
+    # Try 12-hour format with regex
+    match = _TIME_12H_PATTERN.match(time_str)
+    if match:
+        hour, minute, period = match.groups()
+        hour = int(hour)
+        minute = int(minute)
+        if period.upper() == "PM" and hour != 12:
+            hour += 12
+        elif period.upper() == "AM" and hour == 12:
+            hour = 0
+        return time(hour, minute)
 
-    for fmt in formats:
-        try:
-            return datetime.strptime(time_str, fmt).time()
-        except ValueError:
-            continue
+    # Try 24-hour format
+    match = _TIME_24H_PATTERN.match(time_str)
+    if match:
+        hour, minute = match.groups()
+        return time(int(hour), int(minute))
 
     return None
 

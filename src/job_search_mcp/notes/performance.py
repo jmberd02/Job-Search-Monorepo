@@ -4,6 +4,8 @@ from dataclasses import dataclass
 from datetime import date
 import yaml
 
+from .utils import parse_sections, parse_date_field
+
 
 @dataclass
 class PerformanceSummary:
@@ -31,18 +33,10 @@ def parse_performance_summary(text: str) -> PerformanceSummary:
     perf = PerformanceSummary()
 
     # Parse last_updated from frontmatter
-    last_updated_str = frontmatter.get("last_updated", "")
-    if last_updated_str:
-        if isinstance(last_updated_str, date):
-            perf.last_updated = last_updated_str
-        else:
-            try:
-                perf.last_updated = date.fromisoformat(last_updated_str)
-            except (ValueError, TypeError):
-                pass
+    perf.last_updated = parse_date_field(frontmatter.get("last_updated", ""), default=None)
 
     # Parse content sections
-    sections = _parse_sections(content)
+    sections = parse_sections(content)
 
     if "overall assessment" in sections:
         perf.overall_assessment = sections["overall assessment"].strip()
@@ -67,67 +61,45 @@ def parse_performance_summary(text: str) -> PerformanceSummary:
 
 def render_performance_summary(perf: PerformanceSummary) -> str:
     """Render a PerformanceSummary into markdown text."""
+    parts = []
+    
     # Frontmatter
-    frontmatter = {
-        "tags": ["job-search", "performance"],
-    }
+    frontmatter = {"tags": ["job-search", "performance"]}
     if perf.last_updated:
         frontmatter["last_updated"] = perf.last_updated.isoformat()
-
-    frontmatter_str = "---\n" + yaml.dump(frontmatter, default_flow_style=False) + "---\n"
+    parts.append("---\n" + yaml.dump(frontmatter, default_flow_style=False) + "---\n")
 
     # Content
-    content = "# Performance Summary\n\n"
+    parts.append("# Performance Summary\n\n")
 
     # Overall Assessment
-    content += "## Overall Assessment\n"
-    content += perf.overall_assessment if perf.overall_assessment else ""
-    content += "\n\n"
+    parts.append("## Overall Assessment\n")
+    parts.append(perf.overall_assessment if perf.overall_assessment else "")
+    parts.append("\n\n")
 
     # LeetCode Progress
-    content += "## LeetCode Progress\n"
-    content += perf.leetcode_progress if perf.leetcode_progress else ""
-    content += "\n\n"
+    parts.append("## LeetCode Progress\n")
+    parts.append(perf.leetcode_progress if perf.leetcode_progress else "")
+    parts.append("\n\n")
 
     # Interview Prep Status
-    content += "## Interview Prep Status\n"
-    content += perf.interview_prep_status if perf.interview_prep_status else ""
-    content += "\n\n"
+    parts.append("## Interview Prep Status\n")
+    parts.append(perf.interview_prep_status if perf.interview_prep_status else "")
+    parts.append("\n\n")
 
     # Weak Areas
-    content += "## Weak Areas\n"
-    content += perf.weak_areas if perf.weak_areas else ""
-    content += "\n\n"
+    parts.append("## Weak Areas\n")
+    parts.append(perf.weak_areas if perf.weak_areas else "")
+    parts.append("\n\n")
 
     # Strengths
-    content += "## Strengths\n"
-    content += perf.strengths if perf.strengths else ""
-    content += "\n\n"
+    parts.append("## Strengths\n")
+    parts.append(perf.strengths if perf.strengths else "")
+    parts.append("\n\n")
 
     # Recommendations
-    content += "## Recommendations\n"
-    content += perf.recommendations if perf.recommendations else ""
-    content += "\n"
+    parts.append("## Recommendations\n")
+    parts.append(perf.recommendations if perf.recommendations else "")
+    parts.append("\n")
 
-    return frontmatter_str + content
-
-
-def _parse_sections(content: str) -> dict[str, str]:
-    """Parse markdown content into sections."""
-    sections = {}
-    current_section = ""
-    current_content = []
-
-    for line in content.split("\n"):
-        if line.startswith("## "):
-            if current_section:
-                sections[current_section.lower()] = "\n".join(current_content)
-            current_section = line[3:].strip()
-            current_content = []
-        else:
-            current_content.append(line)
-
-    if current_section:
-        sections[current_section.lower()] = "\n".join(current_content)
-
-    return sections
+    return "".join(parts)

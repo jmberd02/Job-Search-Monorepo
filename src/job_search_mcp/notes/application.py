@@ -11,6 +11,7 @@ from job_search_mcp.models import (
     Task,
     TaskState,
 )
+from .utils import parse_sections, parse_date_field, escape_table_cell
 
 
 def parse_application_note(text: str) -> ApplicationRecord:
@@ -29,23 +30,10 @@ def parse_application_note(text: str) -> ApplicationRecord:
     role = frontmatter.get("role", "")
     application_key = frontmatter.get("application_key", "")
     status_str = frontmatter.get("status", "drafted")
-    created_str = frontmatter.get("created", "")
-    last_updated_str = frontmatter.get("last_updated", "")
+    created = parse_date_field(frontmatter.get("created", ""))
+    last_updated = parse_date_field(frontmatter.get("last_updated", ""))
 
     status = ApplicationStatus(status_str)
-    if isinstance(created_str, date):
-        created = created_str
-    elif created_str:
-        created = date.fromisoformat(created_str)
-    else:
-        created = date.today()
-
-    if isinstance(last_updated_str, date):
-        last_updated = last_updated_str
-    elif last_updated_str:
-        last_updated = date.fromisoformat(last_updated_str)
-    else:
-        last_updated = date.today()
 
     # Initialize record
     record = ApplicationRecord(
@@ -59,7 +47,7 @@ def parse_application_note(text: str) -> ApplicationRecord:
     )
 
     # Parse content sections
-    sections = _parse_sections(content)
+    sections = parse_sections(content)
 
     # Parse Snapshot
     if "snapshot" in sections:
@@ -71,19 +59,13 @@ def parse_application_note(text: str) -> ApplicationRecord:
                 key, value = line.split(":", 1)
                 value = value.strip()
                 if "Applied on" in key:
-                    try:
-                        record.applied_on = date.fromisoformat(value)
-                    except ValueError:
-                        pass
+                    record.applied_on = parse_date_field(value, default=None)
                 elif "Current stage" in key:
                     record.current_stage = value
                 elif "Next action" in key:
                     record.next_action = value
                 elif "Due" in key:
-                    try:
-                        record.due_date = date.fromisoformat(value)
-                    except ValueError:
-                        pass
+                    record.due_date = parse_date_field(value, default=None)
                 elif "Priority / Interest" in key:
                     try:
                         record.priority_interest = int(value)
@@ -116,6 +98,8 @@ def parse_application_note(text: str) -> ApplicationRecord:
 
 def render_application_note(record: ApplicationRecord) -> str:
     """Render an ApplicationRecord into markdown text."""
+    parts = []
+    
     # Frontmatter
     frontmatter = {
         "tags": ["job-search", "application"],
@@ -127,14 +111,13 @@ def render_application_note(record: ApplicationRecord) -> str:
         "created": record.created.isoformat(),
         "last_updated": record.last_updated.isoformat(),
     }
-
-    frontmatter_str = "---\n" + yaml.dump(frontmatter, default_flow_style=False) + "---\n"
+    parts.append("---\n" + yaml.dump(frontmatter, default_flow_style=False) + "---\n")
 
     # Content
-    content = f"# {record.company} - {record.role}\n\n"
+    parts.append(f"# {record.company} - {record.role}\n\n")
 
     # Snapshot
-    content += "## Snapshot\n"
+    parts.append("## Snapshot\n")
     snapshot_items = [
         f"- **Company:** [[Companies/{record.company}]]",
         f"- **Role:** {record.role}",
@@ -154,40 +137,39 @@ def render_application_note(record: ApplicationRecord) -> str:
         snapshot_items.append(f"- **Comp:** {record.comp}")
     if record.location:
         snapshot_items.append(f"- **Location:** {record.location}")
-
-    content += "\n".join(snapshot_items) + "\n\n"
+    parts.append("\n".join(snapshot_items) + "\n\n")
 
     # Materials
-    content += "## Materials\n"
+    parts.append("## Materials\n")
     if record.materials:
         for key, value in record.materials.items():
-            content += f"- {key}: {value}\n"
-    content += "\n"
+            parts.append(f"- {key}: {value}\n")
+    parts.append("\n")
 
     # Interview Process
-    content += "## Interview Process\n"
+    parts.append("## Interview Process\n")
     if record.interview_process:
-        content += "| Date | Stage | People | Outcome | Notes |\n"
-        content += "|------|-------|--------|---------|-------|\n"
+        parts.append("| Date | Stage | People | Outcome | Notes |\n")
+        parts.append("|------|-------|--------|---------|-------|\n")
         for event in record.interview_process:
-            content += f"| {event.date.isoformat()} | {event.stage} | {event.people} | {event.outcome} | {event.notes} |\n"
-    content += "\n"
+            parts.append(f"| {event.date.isoformat()} | {escape_table_cell(event.stage)} | {escape_table_cell(event.people)} | {escape_table_cell(event.outcome)} | {escape_table_cell(event.notes)} |\n")
+    parts.append("\n")
 
     # Role-Specific Notes
-    content += "## Role-Specific Notes\n\n"
+    parts.append("## Role-Specific Notes\n\n")
 
     # Tasks
-    content += "## Tasks\n"
+    parts.append("## Tasks\n")
     for task in record.tasks:
         checkbox = "[ ]" if task.state == TaskState.PENDING else "[x]"
         due = f" (due: {task.due_date.isoformat()})" if task.due_date else ""
-        content += f"- {checkbox} {task.description}{due}\n"
-    content += "\n"
+        parts.append(f"- {checkbox} {task.description}{due}\n")
+    parts.append("\n")
 
     # Outcome
-    content += "## Outcome\n"
+    parts.append("## Outcome\n")
 
-    return frontmatter_str + content
+    return "".join(parts)
 
 
 def upsert_application_interview_event(
@@ -209,48 +191,20 @@ def upsert_application_interview_event(
     return record
 
 
-def _parse_sections(content: str) -> dict[str, str]:
-    """Parse markdown content into sections."""
-    sections = {}
-    current_section = ""
-    current_content = []
-
-    for line in content.split("\n"):
-        if line.startswith("## "):
-            if current_section:
-                sections[current_section.lower()] = "\n".join(current_content)
-            current_section = line[3:].strip()
-            current_content = []
-        else:
-            current_content.append(line)
-
-    if current_section:
-        sections[current_section.lower()] = "\n".join(current_content)
-
-    return sections
-
-
 def _parse_interview_table(table_text: str) -> list[InterviewEvent]:
     """Parse an interview process markdown table."""
     events = []
-    lines = [l for l in table_text.strip().split("\n") if l.strip().startswith("|")]
+    lines = table_text.strip().split("\n")
 
-    # Skip header and separator
-    for line in lines[2:]:
-        if not line.strip():
+    # Skip header and separator, process data rows
+    for i, line in enumerate(lines):
+        if i < 2 or not line.strip().startswith("|"):
             continue
-        line = line.strip().strip("|")
-        parts = [p.strip() for p in line.split("|")]
+        parts = [p.strip() for p in line.strip().strip("|").split("|")]
         if len(parts) >= 5:
-            event_date = None
-            if parts[0]:
-                try:
-                    event_date = date.fromisoformat(parts[0])
-                except ValueError:
-                    pass
             events.append(
                 InterviewEvent(
-                    date=event_date or date.today(),
+                    date=parse_date_field(parts[0]),
                     stage=parts[1],
                     people=parts[2],
                     outcome=parts[3],
@@ -284,10 +238,7 @@ def _parse_tasks_list(tasks_text: str) -> list[Task]:
             match = desc.rsplit("(due:", 1)
             if len(match) == 2:
                 due_str = match[1].rstrip(")").strip()
-                try:
-                    due_date = date.fromisoformat(due_str)
-                except ValueError:
-                    pass
+                due_date = parse_date_field(due_str, default=None)
                 desc = match[0].strip()
 
         tasks.append(Task(description=desc, state=state, due_date=due_date))

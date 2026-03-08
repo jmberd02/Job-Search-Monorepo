@@ -3,6 +3,8 @@
 from dataclasses import dataclass
 import yaml
 
+from .utils import parse_sections
+
 
 @dataclass
 class CandidateProfile:
@@ -35,7 +37,7 @@ def parse_candidate_profile(text: str) -> CandidateProfile:
     profile = CandidateProfile()
 
     # Parse content sections
-    sections = _parse_sections(content)
+    sections = parse_sections(content)
 
     if "background summary" in sections:
         profile.background_summary = sections["background summary"].strip()
@@ -67,77 +69,55 @@ def parse_candidate_profile(text: str) -> CandidateProfile:
 
 def render_candidate_profile(profile: CandidateProfile) -> str:
     """Render a CandidateProfile into markdown text."""
+    parts = []
+    
     # Frontmatter
-    frontmatter = {
-        "tags": ["job-search", "profile"],
-    }
-
-    frontmatter_str = "---\n" + yaml.dump(frontmatter, default_flow_style=False) + "---\n"
+    frontmatter = {"tags": ["job-search", "profile"]}
+    parts.append("---\n" + yaml.dump(frontmatter, default_flow_style=False) + "---\n")
 
     # Content
-    content = "# Candidate Profile\n\n"
+    parts.append("# Candidate Profile\n\n")
 
     # Background Summary
-    content += "## Background Summary\n"
-    content += profile.background_summary if profile.background_summary else ""
-    content += "\n\n"
+    parts.append("## Background Summary\n")
+    parts.append(profile.background_summary if profile.background_summary else "")
+    parts.append("\n\n")
 
     # Target Roles
-    content += "## Target Roles\n"
+    parts.append("## Target Roles\n")
     if profile.target_roles:
         for role in profile.target_roles:
-            content += f"- {role}\n"
-    content += "\n"
+            parts.append(f"- {role}\n")
+    parts.append("\n")
 
     # Compensation Targets
-    content += "## Compensation Targets\n"
-    content += profile.compensation_targets if profile.compensation_targets else ""
-    content += "\n\n"
+    parts.append("## Compensation Targets\n")
+    parts.append(profile.compensation_targets if profile.compensation_targets else "")
+    parts.append("\n\n")
 
     # Location Constraints
-    content += "## Location Constraints\n"
-    content += profile.location_constraints if profile.location_constraints else ""
-    content += "\n\n"
+    parts.append("## Location Constraints\n")
+    parts.append(profile.location_constraints if profile.location_constraints else "")
+    parts.append("\n\n")
 
     # Search Priorities
-    content += "## Search Priorities\n"
-    content += profile.search_priorities if profile.search_priorities else ""
-    content += "\n\n"
+    parts.append("## Search Priorities\n")
+    parts.append(profile.search_priorities if profile.search_priorities else "")
+    parts.append("\n\n")
 
     # Scheduling Preferences
-    content += "## Scheduling Preferences\n"
-    content += profile.scheduling_preferences if profile.scheduling_preferences else ""
-    content += "\n\n"
+    parts.append("## Scheduling Preferences\n")
+    parts.append(profile.scheduling_preferences if profile.scheduling_preferences else "")
+    parts.append("\n\n")
 
     # Daily Capacity Limits
-    content += "## Daily Capacity Limits\n"
-    content += profile.daily_capacity_limits if profile.daily_capacity_limits else ""
-    content += "\n\n"
+    parts.append("## Daily Capacity Limits\n")
+    parts.append(profile.daily_capacity_limits if profile.daily_capacity_limits else "")
+    parts.append("\n\n")
 
     # Recurring Commitments
-    content += "## Recurring Commitments\n"
-    content += profile.recurring_commitments if profile.recurring_commitments else ""
-    content += "\n"
+    parts.append("## Recurring Commitments\n")
+    parts.append(profile.recurring_commitments if profile.recurring_commitments else "")
+    parts.append("\n")
 
-    return frontmatter_str + content
-
-
-def _parse_sections(content: str) -> dict[str, str]:
-    """Parse markdown content into sections."""
-    sections = {}
-    current_section = ""
-    current_content = []
-
-    for line in content.split("\n"):
-        if line.startswith("## "):
-            if current_section:
-                sections[current_section.lower()] = "\n".join(current_content)
-            current_section = line[3:].strip()
-            current_content = []
-        else:
-            current_content.append(line)
-
-    if current_section:
-        sections[current_section.lower()] = "\n".join(current_content)
-
-    return sections
+    return "".join(parts)
