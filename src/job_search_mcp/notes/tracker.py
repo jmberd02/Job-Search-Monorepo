@@ -11,6 +11,7 @@ class CompanyTracking:
     """Company tracking note record."""
 
     companies: dict[str, dict] = field(default_factory=dict)
+    applications: dict[str, str] = field(default_factory=dict)  # application_key -> note_path
 
 
 def parse_company_tracking(text: str) -> CompanyTracking:
@@ -33,6 +34,20 @@ def parse_company_tracking(text: str) -> CompanyTracking:
         company_data["name"] = company_name
 
         tracker.companies[company_key] = company_data
+
+    # Parse application index if present
+    app_index_pattern = r"## Application Index\n((?:(?!\n## ).)*)"
+    app_match = re.search(app_index_pattern, text, re.DOTALL)
+    if app_match:
+        app_content = app_match.group(1)
+        for line in app_content.split("\n"):
+            line = line.strip()
+            if line.startswith("-"):
+                # Format: - application_key: path/to/note.md
+                line = line[1:].strip()
+                if ":" in line:
+                    key, path = line.split(":", 1)
+                    tracker.applications[key.strip()] = path.strip()
 
     return tracker
 
@@ -81,6 +96,13 @@ def render_company_tracking(tracker: CompanyTracking) -> str:
 
     # Closed Out
     content += "## Closed Out\n\n"
+
+    # Application Index
+    if tracker.applications:
+        content += "## Application Index\n\n"
+        for app_key, app_path in sorted(tracker.applications.items()):
+            content += f"- {app_key}: {app_path}\n"
+        content += "\n"
 
     return content
 

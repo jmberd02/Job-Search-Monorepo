@@ -93,3 +93,116 @@ Test company note.
         service = JobSearchService(vault_root=str(vault_root))
         company = service.read_company_note("any")
         assert company is None
+
+
+class TestServiceApplicationNoteResolution:
+    """Tests for application note resolution through index."""
+
+    def test_read_application_note_via_index(self, tmp_path):
+        """Test reading application note via application index."""
+        vault_root = tmp_path / "vault"
+        vault_root.mkdir()
+        
+        # Create tracker with application index
+        tracker_path = vault_root / "Company Tracking.md"
+        tracker_content = """# Company Tracking
+
+## Application Index
+
+- acme-corp-senior-engineer: Applications/Acme Corp - Senior Engineer.md
+
+"""
+        tracker_path.write_text(tracker_content)
+        
+        # Create application note
+        apps_dir = vault_root / "Applications"
+        apps_dir.mkdir(parents=True)
+        app_note_path = apps_dir / "Acme Corp - Senior Engineer.md"
+        app_note_path.write_text("""---
+company: Acme Corp
+company_key: acme-corp
+role: Senior Engineer
+application_key: acme-corp-senior-engineer
+status: applied
+created: 2026-03-01
+last_updated: 2026-03-07
+---
+
+# Acme Corp - Senior Engineer
+
+Test application note.
+""")
+        
+        service = JobSearchService(vault_root=str(vault_root))
+        app = service.read_application_note("acme-corp-senior-engineer")
+        
+        assert app is not None
+        assert app.company == "Acme Corp"
+        assert app.application_key == "acme-corp-senior-engineer"
+        assert app.status == ApplicationStatus.APPLIED
+
+    def test_read_application_note_fallback_to_scan(self, tmp_path):
+        """Test reading application note falls back to scanning when not in index."""
+        vault_root = tmp_path / "vault"
+        vault_root.mkdir()
+        
+        # Create empty tracker (no index)
+        tracker_path = vault_root / "Company Tracking.md"
+        tracker_path.write_text("# Company Tracking\n")
+        
+        # Create application note
+        apps_dir = vault_root / "Applications"
+        apps_dir.mkdir(parents=True)
+        app_note_path = apps_dir / "Acme Corp - Senior Engineer.md"
+        app_note_path.write_text("""---
+company: Acme Corp
+company_key: acme-corp
+role: Senior Engineer
+application_key: acme-corp-senior-engineer
+status: applied
+created: 2026-03-01
+last_updated: 2026-03-07
+---
+
+# Acme Corp - Senior Engineer
+""")
+        
+        service = JobSearchService(vault_root=str(vault_root))
+        app = service.read_application_note("acme-corp-senior-engineer")
+        
+        assert app is not None
+        assert app.application_key == "acme-corp-senior-engineer"
+
+    def test_write_application_note_updates_index(self, tmp_path):
+        """Test writing application note updates the index."""
+        vault_root = tmp_path / "vault"
+        vault_root.mkdir()
+        
+        # Create empty tracker
+        tracker_path = vault_root / "Company Tracking.md"
+        tracker_path.write_text("# Company Tracking\n")
+        
+        service = JobSearchService(vault_root=str(vault_root))
+        
+        from job_search_mcp.models import ApplicationRecord
+        app = ApplicationRecord(
+            company="Acme Corp",
+            company_key="acme-corp",
+            role="Senior Engineer",
+            application_key="acme-corp-senior-engineer",
+            status=ApplicationStatus.APPLIED,
+            created=date(2026, 3, 1),
+            last_updated=date(2026, 3, 7),
+        )
+        
+        service.write_application_note(app)
+        
+        # Verify index was updated
+        tracker = service.read_company_tracking()
+        assert "acme-corp-senior-engineer" in tracker.applications
+        assert tracker.applications["acme-corp-senior-engineer"] == "Applications/Acme Corp - Senior Engineer.md"
+        
+        # Verify we can read it back via index
+        read_app = service.read_application_note("acme-corp-senior-engineer")
+        assert read_app is not None
+        assert read_app.application_key == "acme-corp-senior-engineer"

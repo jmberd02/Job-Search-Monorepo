@@ -93,6 +93,15 @@ class JobSearchService:
 
     def read_application_note(self, application_key: str) -> Optional[ApplicationRecord]:
         """Read an application note from the vault."""
+        # Try index lookup first
+        tracker = self.read_company_tracking()
+        if tracker and application_key in tracker.applications:
+            note_path = self._vault_root / tracker.applications[application_key]
+            if note_path.exists():
+                content = note_path.read_text()
+                return parse_application_note(content)
+        
+        # Fallback to scanning (for backward compatibility)
         apps_dir = get_applications_dir(self._vault_root)
         for file_path in apps_dir.rglob("*.md"):
             content = file_path.read_text()
@@ -107,6 +116,12 @@ class JobSearchService:
         file_path = apps_dir / f"{record.company} - {record.role}.md"
         text = render_application_note(record)
         file_path.write_text(text)
+        
+        # Update application index
+        tracker = self.read_company_tracking()
+        relative_path = file_path.relative_to(self._vault_root)
+        tracker.applications[record.application_key] = str(relative_path)
+        self.write_company_tracking(tracker)
 
     # Company Tracking Operations
 

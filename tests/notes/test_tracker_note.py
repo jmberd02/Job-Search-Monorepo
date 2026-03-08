@@ -17,6 +17,7 @@ class TestParseCompanyTracking:
         tracker = parse_company_tracking(text)
         assert tracker is not None
         assert len(tracker.companies) == 0
+        assert len(tracker.applications) == 0
 
     def test_parse_tracker_with_company(self):
         """Should parse a tracker with a company entry."""
@@ -46,6 +47,25 @@ class TestParseCompanyTracking:
         assert company["current_state"] == "Phone screen"
         assert company["next_action"] == "Prepare for onsite"
         assert company["due"] == date(2026, 3, 15)
+
+    def test_parse_tracker_with_application_index(self):
+        """Should parse application index from tracker."""
+        from job_search_mcp.notes.tracker import parse_company_tracking
+
+        text = """# Company Tracking
+
+## Active Interview Pipeline
+
+## Application Index
+
+- acme-corp-senior-engineer: Applications/Acme Corp - Senior Engineer.md
+- techco-staff-engineer: Applications/TechCo - Staff Engineer.md
+
+"""
+        tracker = parse_company_tracking(text)
+        assert len(tracker.applications) == 2
+        assert tracker.applications["acme-corp-senior-engineer"] == "Applications/Acme Corp - Senior Engineer.md"
+        assert tracker.applications["techco-staff-engineer"] == "Applications/TechCo - Staff Engineer.md"
 
     def test_parse_tracker_with_multiple_companies(self):
         """Should parse a tracker with multiple company entries."""
@@ -111,6 +131,21 @@ class TestRenderCompanyTracking:
         assert "**Interest:** 4" in text
         assert "**Current state:** Phone screen" in text
         assert "**Next action:** Prepare for onsite" in text
+
+    def test_render_tracker_with_application_index(self):
+        """Should render application index in tracker."""
+        from job_search_mcp.notes.tracker import render_company_tracking, CompanyTracking
+
+        tracker = CompanyTracking()
+        tracker.applications = {
+            "acme-corp-senior-engineer": "Applications/Acme Corp - Senior Engineer.md",
+            "techco-staff-engineer": "Applications/TechCo - Staff Engineer.md",
+        }
+
+        text = render_company_tracking(tracker)
+        assert "## Application Index" in text
+        assert "acme-corp-senior-engineer: Applications/Acme Corp - Senior Engineer.md" in text
+        assert "techco-staff-engineer: Applications/TechCo - Staff Engineer.md" in text
 
 
 class TestUpsertCompanyTrackingEntry:
