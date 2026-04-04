@@ -168,6 +168,241 @@ def ingest_signal(service: JobSearchService, signal: CompanySignal) -> CompanyRe
 
 
 # =============================================================================
+# Setup Tools
+# =============================================================================
+
+def initialize_vault(path: str, user_context: dict) -> str:
+    """
+    Initialize a new job search vault at specified path.
+
+    Args:
+        path: Absolute path for new vault
+        user_context: User profile data (name, roles, preferences)
+
+    Returns:
+        Success message with vault location
+    """
+    from pathlib import Path
+    import shutil
+    from .config import save_config
+
+    vault_path = Path(path)
+
+    # Create directory structure
+    folders = [
+        "Companies",
+        "Applications",
+        "Day",
+        "Calls",
+        "Leetcode",
+        "Templates",
+        "Prompts",
+        ".claude/skills"
+    ]
+
+    for folder in folders:
+        (vault_path / folder).mkdir(parents=True, exist_ok=True)
+
+    # Copy skill templates from repo skills/ directory
+    repo_root = Path(__file__).parent.parent.parent
+    skills_source = repo_root / "skills"
+    skills_dest = vault_path / ".claude" / "skills"
+
+    if skills_source.exists():
+        for skill_dir in skills_source.iterdir():
+            if skill_dir.is_dir():
+                shutil.copytree(
+                    skill_dir,
+                    skills_dest / skill_dir.name,
+                    dirs_exist_ok=True
+                )
+
+    # Create .claude/CLAUDE.md from template
+    claude_md = f"""# Job Search Agent
+
+You are a job search assistant helping {user_context.get('name', 'the user')} find their next role.
+
+## About {user_context.get('name', 'User')}
+- Name: {user_context.get('name', 'User')}
+- Target roles: {', '.join(user_context.get('target_roles', []))}
+- Focus areas: {', '.join(user_context.get('focus_areas', []))}
+- Compensation: {user_context.get('compensation', 'Not specified')}
+- Location: {user_context.get('location', 'Not specified')}
+
+## Your Role
+- Help plan daily job search activities
+- Track companies and applications
+- Process recruiter communications
+- Analyze LeetCode practice sessions
+- Provide interview prep support
+
+## Context
+This vault contains {user_context.get('name', 'the user')}'s job search pipeline, daily plans,
+company research, and interview prep notes. Always read relevant notes before making suggestions.
+"""
+
+    (vault_path / ".claude" / "CLAUDE.md").write_text(claude_md)
+
+    # Create initial tracker
+    tracker_content = """# Company Tracking
+
+## Needs Action This Week
+| Company | Status | Next Action | Due |
+|---------|--------|-------------|-----|
+| _Add companies here as you progress_ | | | |
+
+## Active Interview Pipeline
+
+_Companies will appear here when you track them_
+
+## Applied / Waiting
+
+## Networking Leads
+
+## Closed Out
+"""
+
+    (vault_path / "Company Tracking.md").write_text(tracker_content)
+
+    # Create Candidate Profile template
+    profile_content = f"""---
+created: {date.today().isoformat()}
+updated: {date.today().isoformat()}
+---
+
+# Candidate Profile
+
+## Basic Info
+- **Name:** {user_context.get('name', '')}
+- **Target Roles:** {', '.join(user_context.get('target_roles', []))}
+- **Focus Areas:** {', '.join(user_context.get('focus_areas', []))}
+- **Compensation Target:** {user_context.get('compensation', '')}
+- **Location:** {user_context.get('location', '')}
+
+## Preferences
+- **Work Style:** [Remote/Hybrid/Onsite]
+- **Company Size:** [Startup/Mid/Large/Any]
+- **Industries:** [Tech, AI/ML, etc.]
+
+## Constraints
+- **Commute:** Max [X] minutes
+- **Availability:** [When can you interview]
+- **Notice Period:** [Current job notice]
+
+## Notes
+[Add personal notes about search priorities]
+"""
+
+    (vault_path / "Candidate Profile.md").write_text(profile_content)
+
+    # Create Progress hub
+    progress_content = """# Job Search Progress
+
+## Quick Links
+- [[Company Tracking]] - Pipeline at a glance
+- [[Candidate Profile]] - Your profile and preferences
+
+## Recent Activity
+- Check [[Day/]] for daily notes
+
+## Active Focus
+[Add current focus areas]
+"""
+
+    (vault_path / "Progress.md").write_text(progress_content)
+
+    # Create README
+    readme_content = """# Job Search Vault
+
+This vault tracks your job search using Claude Code.
+
+## Quick Start
+
+Open Claude Code in this directory and try:
+- `/plan tomorrow` - Create tomorrow's plan
+- `/track` - Add a company to your pipeline
+- `/help` - See all commands
+
+## Files
+- **Company Tracking.md** - Your pipeline at a glance
+- **Companies/** - Detailed company research
+- **Day/** - Daily plans and activity logs
+
+## Tips
+- Use Obsidian to browse and manually edit notes
+- Claude will read/write these notes automatically
+- Install Obsidian Git plugin for backups
+"""
+
+    (vault_path / "README.md").write_text(readme_content)
+
+    # Save config
+    config_data = {
+        "vault_path": str(vault_path.absolute()),
+        "user_context": user_context
+    }
+    save_config(None, config_data)  # Uses default path
+
+    return f"✓ Vault created at {vault_path}\n✓ Configuration saved\n✓ Skills installed"
+
+
+def get_pending_actions_from_tracker(config_path: Optional[str] = None) -> list[dict]:
+    """
+    Extract pending actions from Company Tracking.md.
+
+    Args:
+        config_path: Optional path to config file
+
+    Returns:
+        List of pending actions with company, action, and due date
+    """
+    from pathlib import Path
+    from .paths import get_tracker_path, get_vault_root
+
+    # Get vault root from config
+    if config_path:
+        vault_root = get_vault_root(Path(config_path))
+    else:
+        vault_root = get_vault_root()
+
+    # Read tracker file directly
+    tracker_path = get_tracker_path(vault_root)
+    if not tracker_path.exists():
+        return []
+
+    tracker_text = tracker_path.read_text()
+    actions = []
+
+    # Parse "Needs Action This Week" table
+    lines = tracker_text.split('\n')
+    in_table = False
+
+    for line in lines:
+        if '## Needs Action This Week' in line:
+            in_table = True
+            continue
+
+        if in_table and line.startswith('|') and not line.startswith('|---'):
+            # Skip header
+            if 'Company' in line and 'Status' in line:
+                continue
+
+            parts = [p.strip() for p in line.split('|')[1:-1]]
+            if len(parts) >= 4 and parts[0] and parts[0] != '_Add companies':
+                actions.append({
+                    "company": parts[0],
+                    "status": parts[1],
+                    "next_action": parts[2],
+                    "due": parts[3]
+                })
+
+        if in_table and line.startswith('##') and 'Needs Action' not in line:
+            break
+
+    return actions
+
+
+# =============================================================================
 # Utility Functions
 # =============================================================================
 
