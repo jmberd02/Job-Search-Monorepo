@@ -5,8 +5,8 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
-from .config import get_vault_root
 from .paths import (
+    get_vault_root,
     get_companies_dir,
     get_applications_dir,
     get_daily_dir,
@@ -26,12 +26,18 @@ from .models import CompanyRecord, ApplicationRecord
 class JobSearchService:
     """Service for reading and writing Obsidian vault notes."""
 
-    def __init__(self, vault_root: Optional[str] = None):
-        """Initialize the service with a vault root path."""
+    def __init__(self, vault_root: Optional[str] = None, config_path: Optional[Path] = None):
+        """
+        Initialize the service with a vault root path.
+
+        Args:
+            vault_root: Optional explicit vault root path
+            config_path: Optional path to config file
+        """
         if vault_root:
             self._vault_root = Path(vault_root)
         else:
-            self._vault_root = get_vault_root()
+            self._vault_root = get_vault_root(config_path)
 
         # Ensure directories exist
         self._ensure_directories()

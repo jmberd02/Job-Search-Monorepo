@@ -201,8 +201,26 @@ last_updated: 2026-03-07
         tracker = service.read_company_tracking()
         assert "acme-corp-senior-engineer" in tracker.applications
         assert tracker.applications["acme-corp-senior-engineer"] == "Applications/Acme Corp - Senior Engineer.md"
-        
+
         # Verify we can read it back via index
         read_app = service.read_application_note("acme-corp-senior-engineer")
         assert read_app is not None
         assert read_app.application_key == "acme-corp-senior-engineer"
+
+
+def test_service_uses_config(tmp_path):
+    """Test that service loads vault path from config"""
+    from job_search_mcp.service import JobSearchService
+    from job_search_mcp.config import save_config
+
+    # Create config
+    config_path = tmp_path / "config.json"
+    vault_path = tmp_path / "vault"
+    vault_path.mkdir()
+
+    save_config(config_path, {"vault_path": str(vault_path)})
+
+    # Create service with config path
+    service = JobSearchService(config_path=config_path)
+
+    assert service.vault_root == vault_path
