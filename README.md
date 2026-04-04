@@ -1,26 +1,140 @@
-# Rational:
-1. I want to automate my job search workflow
-2. I want to learn about how agents, mcps, and skills work
-3. I want to play around with https://github.com/obra/superpowers
-4. I want to try out codex and other ai tools for vibe coding
-    * I am using Codex because free tier has it right now
-    * I am using kiro because I have extra credits there I need to use before they expire
-    * Eventually Id like to start using Claude Code
+# Job Search Agent
 
-# job-search-mcp
+Automate your job search workflow with Claude Code and Obsidian.
 
-MCP server for job search agent Obsidian vault integration.
+## Features
+
+- 📅 **Daily Planning** - AI-powered daily job search plans
+- 🏢 **Pipeline Tracking** - Organize companies and applications
+- 📧 **Email Processing** - Parse recruiter messages automatically
+- 💻 **LeetCode Analysis** - Track practice and get recommendations
+- 📝 **Obsidian Integration** - All data in markdown, local and private
 
 ## Installation
 
+### Prerequisites
+- Python 3.10 or higher
+- Claude Code (CLI or Windows Companion)
+- Obsidian (optional but recommended)
+
+### Quick Start
+
+**1. Clone this repository:**
 ```bash
-pip install job-search-mcp
+git clone https://github.com/yourusername/job-search-agent.git
+cd job-search-agent
 ```
 
-## Configuration
-
-Set the `OBSIDIAN_VAULT_ROOT` environment variable to your Obsidian vault path:
-
+**2. Run setup:**
 ```bash
-export OBSIDIAN_VAULT_ROOT=/path/to/your/Job\ Search
+./setup.sh  # Mac/Linux
+./setup.ps1 # Windows
 ```
+
+**3. Create your vault:**
+```bash
+# Open Claude Code
+claude
+
+# Run setup wizard
+/setup-job-search
+```
+
+**4. Open in Obsidian:**
+- Open Obsidian
+- Open the vault at the path you chose during setup
+- Start tracking your job search!
+
+## Usage
+
+### Daily Workflow
+
+**Morning:**
+```
+/plan tomorrow
+```
+Claude creates a balanced daily plan with LeetCode practice, pipeline work, and interview prep.
+
+**During the day:**
+```
+/track Got email from Acme Corp wanting to schedule call
+```
+Claude updates your pipeline automatically.
+
+**Process recruiter emails:**
+```
+/ingest [paste email]
+```
+Claude extracts company, role, and next steps.
+
+**After LeetCode:**
+```
+/leetcode Did "Word Ladder", 45min, struggled with BFS
+```
+Claude tracks progress and suggests next problems.
+
+**End of day:**
+```
+/eod
+```
+Claude reviews your day and suggests tomorrow's priorities.
+
+### See All Commands
+```
+/help
+```
+
+## Vault Structure
+
+Your vault contains:
+- `Company Tracking.md` - Pipeline dashboard
+- `Companies/` - Detailed company notes
+- `Applications/` - Per-role application tracking
+- `Day/` - Daily plans and activity logs
+- `Leetcode/` - Practice tracking
+- `.claude/skills/` - Workflow skills
+
+## Tips
+
+- Use Obsidian to browse and manually edit notes
+- Install Obsidian Git plugin for automatic backups
+- Talk naturally with Claude - slash commands are optional
+- Your data stays local and private
+
+## Sharing with Friends
+
+1. Share this repository link
+2. They follow the installation steps above
+3. Each person gets their own private vault
+
+## Development
+
+**Run tests:**
+```bash
+pytest tests/ -v
+```
+
+**Install for development:**
+```bash
+pip install -e ".[dev]"
+```
+
+## Architecture
+
+```
+Claude Code ↔ MCP Server ↔ Obsidian Vault
+    ↑              ↑              ↑
+  Skills      Read/Write      Markdown
+```
+
+- **Skills** - Conversational workflows in `.claude/skills/`
+- **MCP Server** - Data layer for vault operations
+- **Vault** - Obsidian markdown notes (local, private)
+
+## License
+
+MIT
+
+## Contributing
+
+Issues and PRs welcome!
