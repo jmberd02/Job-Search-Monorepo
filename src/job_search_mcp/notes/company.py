@@ -32,7 +32,14 @@ def parse_company_note(text: str) -> CompanyRecord:
     interest = frontmatter.get("interest", 3)
     last_updated = parse_date_field(frontmatter.get("last_updated", ""))
 
-    status = CompanyStatus(status_str)
+    try:
+        status = CompanyStatus(status_str)
+    except ValueError:
+        company_name = frontmatter.get("company", "unknown")
+        valid = [s.value for s in CompanyStatus]
+        raise ValueError(
+            f"Invalid status '{status_str}' for company '{company_name}'. Valid values: {valid}"
+        )
 
     # Initialize record
     record = CompanyRecord(
@@ -172,10 +179,9 @@ def append_company_timeline(record: CompanyRecord, signal: CompanySignal) -> Com
                 entry.entry_type = signal.signal_type.value
                 return record
 
-    # Create new timeline entry
-    entry_date = signal.due_date or date.today()
+    # Create new timeline entry — always use today as the event date, not the due date
     entry = TimelineEntry(
-        date=entry_date,
+        date=date.today(),
         entry_type=signal.signal_type.value,
         summary=signal.summary,
         source=signal.source_marker or "",

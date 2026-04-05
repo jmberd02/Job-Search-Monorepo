@@ -1,17 +1,21 @@
 """Path utilities for job-search-mcp."""
 
-from pathlib import Path
 import os
+import threading
+from pathlib import Path
+
 from .config import get_vault_path, ConfigError
 
 # Default vault root (used when no custom root is provided)
 _default_vault_root: Path | None = None
+_vault_root_lock = threading.Lock()
 
 
 def set_vault_root(path: Path | str):
     """Set the default vault root for path operations."""
     global _default_vault_root
-    _default_vault_root = Path(path)
+    with _vault_root_lock:
+        _default_vault_root = Path(path)
 
 
 def get_vault_root(config_path: Path | None = None) -> Path:
@@ -33,8 +37,9 @@ def get_vault_root(config_path: Path | None = None) -> Path:
         ConfigError: If no vault path configured
     """
     # Check programmatically set root first
-    if _default_vault_root is not None:
-        return _default_vault_root
+    with _vault_root_lock:
+        if _default_vault_root is not None:
+            return _default_vault_root
 
     # Try config file
     try:

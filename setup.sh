@@ -60,7 +60,7 @@ cat > "$MCP_CONFIG" <<EOF
 {
   "job-search": {
     "command": "python3",
-    "args": ["-m", "job_search_mcp.server"],
+    "args": ["-m", "job_search_mcp"],
     "cwd": "$REPO_DIR"
   }
 }
@@ -71,8 +71,8 @@ echo "✓ Claude Code configured"
 # Test MCP server
 echo ""
 echo "Testing MCP server connection..."
-timeout 5 python3 -m job_search_mcp.server --test 2>/dev/null || {
-    echo "⚠️  Could not test server (this is okay if server doesn't support --test flag)"
+timeout 5 python3 -c "import job_search_mcp; print('✓ Package OK')" 2>/dev/null || {
+    echo "⚠️  Could not import package — check that installation succeeded"
 }
 
 echo ""

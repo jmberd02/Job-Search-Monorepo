@@ -4,14 +4,21 @@ This module exposes the core operations as simple functions that can be
 wrapped by an MCP server implementation.
 """
 
+import shutil
 from datetime import date, time
+from pathlib import Path
 from typing import Optional
 
-from .service import JobSearchService
-from .models import CompanyRecord, ApplicationRecord, CompanySignal
-from .notes.daily import DailyNote
-from .notes.tracker import CompanyTracking
+from .config import save_config, get_default_config_path
 from .ingestion import classify_signal as _classify_signal, ingest_signal as _ingest_signal
+from .models import CompanyRecord, ApplicationRecord, CompanySignal
+from .notes.daily import (
+    DailyNote,
+    append_daily_activity as _notes_append_daily_activity,
+    refresh_schedule_vs_activity as _notes_refresh_schedule_vs_activity,
+)
+from .notes.tracker import CompanyTracking
+from .service import JobSearchService
 
 
 # =============================================================================
@@ -119,8 +126,7 @@ def append_daily_activity(
     if start is None or end is None:
         raise ValueError(f"Invalid time format: {start_time} - {end_time}")
 
-    from .notes.daily import append_daily_activity as _append
-    daily = _append(daily, start, end, description, status, note)
+    daily = _notes_append_daily_activity(daily, start, end, description, status, note)
     service.write_daily_note(daily)
 
 
@@ -130,8 +136,7 @@ def refresh_schedule_vs_activity(service: JobSearchService, note_date: date) -> 
     if daily is None:
         return
 
-    from .notes.daily import refresh_schedule_vs_activity as _refresh
-    daily = _refresh(daily)
+    daily = _notes_refresh_schedule_vs_activity(daily)
     service.write_daily_note(daily)
 
 
@@ -182,10 +187,6 @@ def initialize_vault(path: str, user_context: dict) -> str:
     Returns:
         Success message with vault location
     """
-    from pathlib import Path
-    import shutil
-    from .config import save_config
-
     vault_path = Path(path)
 
     # Create directory structure
@@ -341,7 +342,7 @@ Open Claude Code in this directory and try:
         "vault_path": str(vault_path.absolute()),
         "user_context": user_context
     }
-    save_config(None, config_data)  # Uses default path
+    save_config(get_default_config_path(), config_data)
 
     return f"✓ Vault created at {vault_path}\n✓ Configuration saved\n✓ Skills installed"
 

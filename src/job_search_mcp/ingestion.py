@@ -22,9 +22,16 @@ def classify_signal(
     due_date: Optional[date] = None,
 ) -> CompanySignal:
     """Classify a raw signal into a normalized CompanySignal."""
+    try:
+        parsed_type = SignalType(signal_type)
+    except ValueError:
+        valid = [t.value for t in SignalType]
+        raise ValueError(
+            f"Invalid signal_type '{signal_type}'. Valid values: {valid}"
+        )
     return CompanySignal(
         company_key=company_key,
-        signal_type=SignalType(signal_type),
+        signal_type=parsed_type,
         summary=summary,
         source_marker=source_marker,
         stage=stage,
@@ -95,7 +102,12 @@ def _stage_to_status(stage: str) -> CompanyStatus:
 
 def _update_tracker_from_company(service: JobSearchService, company: CompanyRecord, stage: str = None):
     """Update the tracker entry for a company from the company record."""
-    current_state = stage or company.status.value
+    if stage:
+        current_state = stage
+    else:
+        # Preserve the existing granular state rather than overwriting with a generic status value
+        tracker = service.read_company_tracking()
+        current_state = tracker.companies.get(company.company_key, {}).get("current_state") or company.status.value
     service.upsert_company_tracking_entry(
         company_key=company.company_key,
         company_name=company.company,
