@@ -78,18 +78,3 @@ def save_config(config_path: Path | None, data: dict[str, Any]) -> None:
 
     # Write config
     config_path.write_text(json.dumps(data, indent=2))
-
-
-# Backward compatibility - keep old function
-def get_vault_root() -> Path:
-    """Get the Obsidian vault root directory (backward compatible)."""
-    import os
-    vault_root = os.environ.get("OBSIDIAN_VAULT_ROOT")
-    if vault_root:
-        return Path(vault_root)
-    # Try config file
-    try:
-        return get_vault_path()
-    except ConfigError:
-        # Default to a Job Search folder in the user's home
-        return Path.home() / "Job Search"

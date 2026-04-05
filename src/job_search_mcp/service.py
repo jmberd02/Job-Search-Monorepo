@@ -1,6 +1,7 @@
 """Filesystem service layer for job-search-mcp."""
 
 import os
+import re
 from datetime import date
 from pathlib import Path
 from typing import Optional
@@ -42,8 +43,9 @@ class JobSearchService:
         # Ensure directories exist
         self._ensure_directories()
         
-        # Cache for tracker to avoid repeated reads
+        # Cache for tracker to avoid repeated reads; invalidated when file mtime changes
         self._tracker_cache: Optional[CompanyTracking] = None
+        self._tracker_mtime: Optional[float] = None
 
     def _ensure_directories(self):
         """Ensure required directories exist."""
@@ -60,36 +62,37 @@ class JobSearchService:
 
     def read_company_note(self, company_key: str) -> Optional[CompanyRecord]:
         """Read a company note from the vault."""
-        # Read tracker first
+        # Primary: direct lookup by company_key slug (files written by write_company_note)
+        direct_path = get_companies_dir(self._vault_root) / f"{company_key}.md"
+        if direct_path.exists():
+            return parse_company_note(direct_path.read_text())
+
+        # Fallback: tracker-based lookup for legacy files named by display name
         tracker = self.read_company_tracking()
         if not tracker or company_key not in tracker.companies:
             return None
-        
+
         company_entry = tracker.companies[company_key]
-        
-        # Try company_note_path first, then fall back to parsing notes field
+
         note_path = None
         if "company_note_path" in company_entry:
             note_path = self._vault_root / company_entry["company_note_path"]
         elif "notes" in company_entry:
-            # Parse wikilink from notes field
-            import re
             notes = company_entry["notes"]
             match = re.search(r'\[\[([^\]]+)\]\]', notes)
             if match:
                 link = match.group(1)
                 note_path = self._vault_root / (link + ".md" if not link.endswith(".md") else link)
-        
+
         if not note_path or not note_path.exists():
             return None
-        
-        content = note_path.read_text()
-        return parse_company_note(content)
+
+        return parse_company_note(note_path.read_text())
 
     def write_company_note(self, record: CompanyRecord) -> None:
         """Write a company note to the vault."""
         companies_dir = get_companies_dir(self._vault_root)
-        file_path = companies_dir / f"{record.company}.md"
+        file_path = companies_dir / f"{record.company_key}.md"
         text = render_company_note(record)
         file_path.write_text(text)
 
@@ -135,15 +138,19 @@ class JobSearchService:
     # Company Tracking Operations
 
     def read_company_tracking(self) -> CompanyTracking:
-        """Read the company tracking note."""
-        if self._tracker_cache is not None:
-            return self._tracker_cache
-        
+        """Read the company tracking note, refreshing from disk if the file has changed."""
         tracker_path = get_tracker_path(self._vault_root)
+        current_mtime = tracker_path.stat().st_mtime if tracker_path.exists() else None
+
+        if self._tracker_cache is not None and current_mtime == self._tracker_mtime:
+            return self._tracker_cache
+
         if tracker_path.exists():
             self._tracker_cache = parse_company_tracking(tracker_path.read_text())
+            self._tracker_mtime = current_mtime
         else:
             self._tracker_cache = CompanyTracking()
+            self._tracker_mtime = None
         return self._tracker_cache
 
     def write_company_tracking(self, tracker: CompanyTracking) -> None:
@@ -151,7 +158,8 @@ class JobSearchService:
         tracker_path = get_tracker_path(self._vault_root)
         text = render_company_tracking(tracker)
         tracker_path.write_text(text)
-        self._tracker_cache = tracker  # Update cache
+        self._tracker_cache = tracker
+        self._tracker_mtime = tracker_path.stat().st_mtime
 
     def upsert_company_tracking_entry(
         self,

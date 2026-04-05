@@ -2,8 +2,24 @@
 
 from dataclasses import dataclass, field
 from datetime import date
-from typing import Optional
+from typing import Optional, TypedDict
 import re
+
+class CompanyEntry(TypedDict, total=False):
+    """Type definition for a company entry in the tracker."""
+    name: str
+    status: str
+    interest: int
+    current_state: str
+    next_action: str
+    due: Optional[date]
+    applications: list
+    contacts: str
+    notes: str
+    company_note: str
+    company_note_link: str
+    company_note_path: str
+
 
 # Pre-compile regex patterns for performance
 _COMPANY_PATTERN = re.compile(r"### (.+?)\n((?:(?!\n### ).)*)", re.DOTALL)
@@ -15,7 +31,7 @@ _WIKILINK_PATTERN = re.compile(r"\[\[([^|\]]+)(?:\|[^\]]+)?\]\]")
 class CompanyTracking:
     """Company tracking note record."""
 
-    companies: dict[str, dict] = field(default_factory=dict)
+    companies: dict[str, CompanyEntry] = field(default_factory=dict)
     applications: dict[str, str] = field(default_factory=dict)  # application_key -> note_path
 
 
