@@ -93,3 +93,18 @@ def get_performance_path(vault_root: Path | None = None) -> Path:
     """Get the Performance Summary.md path."""
     root = vault_root or get_vault_root()
     return root / "Performance Summary.md"
+
+
+def get_leetcode_dir(vault_root: Path | None = None) -> Path:
+    """Get the Leetcode directory."""
+    root = vault_root or get_vault_root()
+    return root / "Leetcode"
+
+
+def get_leetcode_date_dir(vault_root: Path | None = None, date_str: str = None) -> Path:
+    """Get the Leetcode date directory (e.g., Leetcode/2026-04-05/)."""
+    root = vault_root or get_vault_root()
+    if date_str is None:
+        from datetime import date
+        date_str = date.today().isoformat()
+    return root / "Leetcode" / date_str

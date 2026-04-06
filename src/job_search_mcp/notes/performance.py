@@ -62,7 +62,7 @@ def parse_performance_summary(text: str) -> PerformanceSummary:
 def render_performance_summary(perf: PerformanceSummary) -> str:
     """Render a PerformanceSummary into markdown text."""
     parts = []
-    
+
     # Frontmatter
     frontmatter = {"tags": ["job-search", "performance"]}
     if perf.last_updated:
@@ -101,5 +101,43 @@ def render_performance_summary(perf: PerformanceSummary) -> str:
     parts.append("## Recommendations\n")
     parts.append(perf.recommendations if perf.recommendations else "")
     parts.append("\n")
+
+    return "".join(parts)
+
+
+def parse_daily_performance_summary(text: str) -> str:
+    """Parse a daily performance summary note.
+
+    Daily summaries are free-form markdown, so we just return the content
+    after the frontmatter.
+    """
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return text
+
+    # Return content after frontmatter
+    return parts[2].strip()
+
+
+def render_daily_performance_summary(content: str) -> str:
+    """Render a daily performance summary into markdown text.
+
+    Args:
+        content: Free-form markdown content
+
+    Returns:
+        Markdown text with frontmatter
+    """
+    frontmatter = {
+        "tags": ["job-search", "leetcode", "performance"]
+    }
+
+    parts = [
+        "---\n",
+        yaml.dump(frontmatter, default_flow_style=False),
+        "---\n\n",
+        content,
+        "\n"
+    ]
 
     return "".join(parts)
