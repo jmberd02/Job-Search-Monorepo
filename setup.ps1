@@ -70,26 +70,20 @@ if (!(Test-Path $skillsDir)) {
     New-Item -ItemType Directory -Path $skillsDir -Force | Out-Null
 }
 
-# Link each skill from the repo
-Get-ChildItem "$repoDir\skills" -Directory | ForEach-Object {
+# Copy each skill from the repo (.claude\skills\)
+Get-ChildItem "$repoDir\.claude\skills" -Directory | ForEach-Object {
     $skillName = $_.Name
     $source = $_.FullName
     $target = "$skillsDir\$skillName"
 
-    # Remove existing link/directory if present
+    # Remove existing directory if present
     if (Test-Path $target) {
         Remove-Item $target -Force -Recurse
     }
 
-    # Create symlink (requires admin on older Windows, or Developer Mode on Windows 10+)
-    try {
-        New-Item -ItemType SymbolicLink -Path $target -Target $source -Force | Out-Null
-        Write-Host "  ✓ Linked $skillName" -ForegroundColor Green
-    } catch {
-        # Fallback: copy instead of symlink if permission denied
-        Copy-Item -Path $source -Destination $target -Recurse -Force
-        Write-Host "  ✓ Copied $skillName (symlink requires admin or Developer Mode)" -ForegroundColor Yellow
-    }
+    # Copy skill directory
+    Copy-Item -Path $source -Destination $target -Recurse -Force
+    Write-Host "  ✓ Installed $skillName" -ForegroundColor Green
 }
 
 Write-Host "✓ Skills installed" -ForegroundColor Green

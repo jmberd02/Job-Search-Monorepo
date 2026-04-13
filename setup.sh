@@ -74,19 +74,19 @@ echo "Installing skills..."
 SKILLS_DIR="$CLAUDE_CONFIG/skills"
 mkdir -p "$SKILLS_DIR"
 
-# Link each skill from the repo
-for skill_dir in "$REPO_DIR/skills/"*/; do
+# Copy each skill from the repo (.claude/skills/)
+for skill_dir in "$REPO_DIR/.claude/skills/"*/; do
     skill_name=$(basename "$skill_dir")
     target="$SKILLS_DIR/$skill_name"
 
-    # Remove existing link/directory if present
+    # Remove existing directory if present
     if [ -e "$target" ] || [ -L "$target" ]; then
         rm -rf "$target"
     fi
 
-    # Create symlink
-    ln -s "$skill_dir" "$target"
-    echo "  ✓ Linked $skill_name"
+    # Copy skill directory
+    cp -r "$skill_dir" "$target"
+    echo "  ✓ Installed $skill_name"
 done
 
 echo "✓ Skills installed"
