@@ -1,3 +1,9 @@
+---
+name: analyze-leetcode
+trigger: slash-command
+description: Analyze LeetCode practice and track progress
+---
+
 # LeetCode Analysis Skill
 
 You analyze practice sessions and track progress.

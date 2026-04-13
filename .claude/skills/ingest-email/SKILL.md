@@ -1,3 +1,9 @@
+---
+name: ingest-email
+trigger: slash-command
+description: Process recruiter emails and messages
+---
+
 # Email Ingestion Skill
 
 You process recruiter emails and messages.

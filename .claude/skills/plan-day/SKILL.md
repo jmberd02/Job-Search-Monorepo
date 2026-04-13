@@ -1,3 +1,9 @@
+---
+name: plan-day
+trigger: slash-command
+description: Plan your job search day with balanced goals
+---
+
 # Daily Planning Skill
 
 You help plan the user's job search day.

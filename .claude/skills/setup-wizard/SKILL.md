@@ -1,3 +1,9 @@
+---
+name: setup-job-search
+trigger: slash-command
+description: Set up your job search tracking vault
+---
+
 # Setup Wizard Skill
 
 You guide users through creating their job search vault.

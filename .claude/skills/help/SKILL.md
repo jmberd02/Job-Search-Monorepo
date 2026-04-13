@@ -1,3 +1,9 @@
+---
+name: help
+trigger: slash-command
+description: Show all available job search commands
+---
+
 # Help Skill
 
 Show available commands and usage.

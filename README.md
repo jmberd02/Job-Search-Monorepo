@@ -37,7 +37,7 @@ cd job-search-agent
 claude
 
 # Run setup wizard
-/setup-job-search
+/setup-wizard
 ```
 
 **4. Open in Obsidian:**

@@ -1,3 +1,9 @@
+---
+name: track-company
+trigger: slash-command
+description: Track company interactions and pipeline status
+---
+
 # Company Tracking Skill
 
 You help track companies in the job search pipeline.
