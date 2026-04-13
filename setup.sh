@@ -68,6 +68,29 @@ EOF
 
 echo "✓ Claude Code configured"
 
+# Install skills
+echo ""
+echo "Installing skills..."
+SKILLS_DIR="$CLAUDE_CONFIG/skills"
+mkdir -p "$SKILLS_DIR"
+
+# Link each skill from the repo
+for skill_dir in "$REPO_DIR/skills/"*/; do
+    skill_name=$(basename "$skill_dir")
+    target="$SKILLS_DIR/$skill_name"
+
+    # Remove existing link/directory if present
+    if [ -e "$target" ] || [ -L "$target" ]; then
+        rm -rf "$target"
+    fi
+
+    # Create symlink
+    ln -s "$skill_dir" "$target"
+    echo "  ✓ Linked $skill_name"
+done
+
+echo "✓ Skills installed"
+
 # Test MCP server
 echo ""
 echo "Testing MCP server connection..."

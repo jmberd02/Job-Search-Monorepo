@@ -62,6 +62,38 @@ $config = @{
 $config | ConvertTo-Json -Depth 10 | Set-Content $mcpConfig
 Write-Host "✓ Claude Code configured" -ForegroundColor Green
 
+# Install skills
+Write-Host ""
+Write-Host "Installing skills..." -ForegroundColor Cyan
+$skillsDir = "$claudeConfig\skills"
+if (!(Test-Path $skillsDir)) {
+    New-Item -ItemType Directory -Path $skillsDir -Force | Out-Null
+}
+
+# Link each skill from the repo
+Get-ChildItem "$repoDir\skills" -Directory | ForEach-Object {
+    $skillName = $_.Name
+    $source = $_.FullName
+    $target = "$skillsDir\$skillName"
+
+    # Remove existing link/directory if present
+    if (Test-Path $target) {
+        Remove-Item $target -Force -Recurse
+    }
+
+    # Create symlink (requires admin on older Windows, or Developer Mode on Windows 10+)
+    try {
+        New-Item -ItemType SymbolicLink -Path $target -Target $source -Force | Out-Null
+        Write-Host "  ✓ Linked $skillName" -ForegroundColor Green
+    } catch {
+        # Fallback: copy instead of symlink if permission denied
+        Copy-Item -Path $source -Destination $target -Recurse -Force
+        Write-Host "  ✓ Copied $skillName (symlink requires admin or Developer Mode)" -ForegroundColor Yellow
+    }
+}
+
+Write-Host "✓ Skills installed" -ForegroundColor Green
+
 Write-Host ""
 Write-Host "=== Setup Complete ===" -ForegroundColor Cyan
 Write-Host ""
