@@ -122,14 +122,24 @@ pip install -e ".[dev]"
 ## Architecture
 
 ```
-Claude Code ↔ MCP Server ↔ Obsidian Vault
-    ↑              ↑              ↑
-  Skills      Read/Write      Markdown
+Claude Code ↔ Plugin (MCP + Skills) ↔ Obsidian Vault
+    ↑              ↑                      ↑
+  CLI        MCP Tools                Markdown
+            Read/Write
 ```
 
-- **Skills** - Conversational workflows in `.claude/skills/`
-- **MCP Server** - Data layer for vault operations
+- **Plugin** - Claude Code plugin with MCP server and skills
+- **MCP Server** - Data layer for vault operations (Python)
+- **Skills** - Conversational workflows for job search tasks
 - **Vault** - Obsidian markdown notes (local, private)
+
+## How It Works
+
+1. **setup.sh** installs the plugin to `~/.claude/plugins/local/job-search/`
+2. Claude Code loads the plugin and connects to the MCP server
+3. Skills provide conversational commands like `/plan-day` and `/track-company`
+4. MCP tools handle vault reads/writes
+5. All data stored as markdown in your Obsidian vault
 
 ## License
 

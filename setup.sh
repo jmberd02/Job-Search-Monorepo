@@ -24,7 +24,7 @@ if [ "$(printf '%s\n' "$REQUIRED" "$PYTHON_VERSION" | sort -V | head -n1)" != "$
     exit 1
 fi
 
-# Install MCP server
+# Install MCP server package
 echo ""
 echo "Installing job-search-mcp..."
 pip install -e . || {
@@ -41,59 +41,97 @@ if [ ! -d "$CLAUDE_CONFIG" ]; then
     mkdir -p "$CLAUDE_CONFIG"
 fi
 
-# Configure MCP server
-MCP_CONFIG="$CLAUDE_CONFIG/mcp_servers.json"
+# Create plugin directory structure
+PLUGIN_DIR="$CLAUDE_CONFIG/plugins/local/job-search"
 REPO_DIR="$(cd "$(dirname "$0")" && pwd)"
 
 echo ""
-echo "Configuring Claude Code MCP server..."
+echo "Installing Claude Code plugin..."
 
-# Create or update mcp_servers.json
-if [ -f "$MCP_CONFIG" ]; then
-    # Backup existing config
-    cp "$MCP_CONFIG" "$MCP_CONFIG.backup"
-    echo "  (Backed up existing config to $MCP_CONFIG.backup)"
+# Remove old plugin if exists
+if [ -d "$PLUGIN_DIR" ]; then
+    rm -rf "$PLUGIN_DIR"
 fi
 
-# Add job-search entry
-cat > "$MCP_CONFIG" <<EOF
+# Create plugin structure
+mkdir -p "$PLUGIN_DIR/.claude-plugin"
+mkdir -p "$PLUGIN_DIR/skills"
+
+# Create plugin metadata
+cat > "$PLUGIN_DIR/.claude-plugin/plugin.json" <<EOF
+{
+  "name": "job-search",
+  "description": "Job search automation with pipeline tracking, daily planning, email processing, and LeetCode analysis",
+  "author": {
+    "name": "Job Search Agent",
+    "email": "support@example.com"
+  },
+  "version": "1.0.0"
+}
+EOF
+
+# Create MCP server config
+cat > "$PLUGIN_DIR/.mcp.json" <<EOF
 {
   "job-search": {
     "command": "python3",
-    "args": ["-m", "job_search_mcp"],
-    "cwd": "$REPO_DIR"
+    "args": ["-m", "job_search_mcp"]
   }
 }
 EOF
 
-echo "✓ Claude Code configured"
+# Copy skills
+if [ -d "$REPO_DIR/.claude/skills" ]; then
+    cp -r "$REPO_DIR/.claude/skills/"* "$PLUGIN_DIR/skills/" 2>/dev/null || true
+    echo "  ✓ Installed skills"
+fi
 
-# Install skills
-echo ""
-echo "Installing skills..."
-SKILLS_DIR="$CLAUDE_CONFIG/skills"
-mkdir -p "$SKILLS_DIR"
+# Create plugin README
+cat > "$PLUGIN_DIR/README.md" <<EOF
+# Job Search Agent Plugin
 
-# Copy each skill from the repo (.claude/skills/)
-for skill_dir in "$REPO_DIR/.claude/skills/"*/; do
-    skill_name=$(basename "$skill_dir")
-    target="$SKILLS_DIR/$skill_name"
+Automate your job search workflow with Claude Code.
 
-    # Remove existing directory if present
-    if [ -e "$target" ] || [ -L "$target" ]; then
-        rm -rf "$target"
-    fi
+## Features
 
-    # Copy skill directory
-    cp -r "$skill_dir" "$target"
-    echo "  ✓ Installed $skill_name"
-done
+- 📅 Daily Planning - AI-powered daily job search plans
+- 🏢 Pipeline Tracking - Organize companies and applications
+- 📧 Email Processing - Parse recruiter messages automatically
+- 💻 LeetCode Analysis - Track practice and get recommendations
 
-echo "✓ Skills installed"
+## Usage
+
+### MCP Tools
+This plugin provides MCP tools for:
+- \`initialize_vault\` - Set up a new job search vault
+- \`ingest_signal\` - Process recruiter messages
+- \`upsert_company_tracking_entry\` - Track companies
+- \`append_daily_activity\` - Log daily activities
+- And more...
+
+### Skills
+Available skills:
+- \`/setup-wizard\` - Set up your vault
+- \`/plan-day\` - Plan your job search day
+- \`/track-company\` - Track a company
+- \`/ingest-email\` - Process recruiter emails
+- \`/analyze-leetcode\` - Analyze LeetCode practice
+- \`/help\` - Show all commands
+
+## Installation
+
+This plugin was installed by running \`setup.sh\` from the job-search-agent repository.
+
+To update:
+1. Pull latest changes from the repo
+2. Run \`./setup.sh\` again
+EOF
+
+echo "✓ Plugin installed at $PLUGIN_DIR"
 
 # Test MCP server
 echo ""
-echo "Testing MCP server connection..."
+echo "Testing MCP server..."
 timeout 5 python3 -c "import job_search_mcp; print('✓ Package OK')" 2>/dev/null || {
     echo "⚠️  Could not import package — check that installation succeeded"
 }
@@ -102,8 +140,10 @@ echo ""
 echo "=== Setup Complete ==="
 echo ""
 echo "Next steps:"
-echo "  1. Open Claude Code (or restart if already open)"
+echo "  1. Restart Claude Code to load the plugin"
 echo "  2. Run: /setup-wizard"
-echo "  3. Follow the setup wizard"
+echo "  3. Follow the setup wizard to create your vault"
 echo ""
-echo "Or use Claude Windows Companion app!"
+echo "The plugin is installed at:"
+echo "  $PLUGIN_DIR"
+echo ""
