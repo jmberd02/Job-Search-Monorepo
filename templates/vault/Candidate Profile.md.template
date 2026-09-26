@@ -1,0 +1,26 @@
+---
+created: {{DATE}}
+updated: {{DATE}}
+---
+
+# Candidate Profile
+
+## Basic Info
+- **Name:** {{NAME}}
+- **Target Roles:** {{ROLES}}
+- **Focus Areas:** {{FOCUS}}
+- **Compensation Target:** {{COMPENSATION}}
+- **Location:** {{LOCATION}}
+
+## Preferences
+- **Work Style:** [Remote/Hybrid/Onsite]
+- **Company Size:** [Startup/Mid/Large/Any]
+- **Industries:** [Tech, AI/ML, etc.]
+
+## Constraints
+- **Commute:** Max [X] minutes
+- **Availability:** [When can you interview]
+- **Notice Period:** [Current job notice]
+
+## Notes
+[Add personal notes about search priorities]
